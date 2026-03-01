@@ -20,4 +20,6 @@ out/
 .DS_Store
 Thumbs.db
 
+local.properties
+
 # CLAUDE.md is project-specific, keep it

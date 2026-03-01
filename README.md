@@ -224,6 +224,16 @@ java -jar gdx-webrtc-server-0.1.0.jar --port 9090
 java -jar gdx-webrtc-server-0.1.0.jar --port 9090 --turn --turn-port 3478 --turn-host 203.0.113.1
 ```
 
+**Ports to open:**
+
+| Port | Protocol | Required | Purpose |
+|------|----------|----------|---------|
+| 9090 | TCP | Always | WebSocket signaling server |
+| 3478 | UDP | TURN only | TURN server listening port |
+| 49152–65535 | UDP | TURN only | Relay ports — each peer allocation gets an ephemeral UDP port from this range for relaying traffic |
+
+If you're behind a firewall, the signaling port (TCP) is always required. When running with `--turn`, you also need UDP 3478 and the ephemeral relay range open. Without TURN, peers connect directly via STUN and no additional server ports are needed.
+
 ## Data Channels
 
 Each peer connection has two data channels:
@@ -309,6 +319,19 @@ Each peer connection creates two SCTP data channels with different reliability c
 - **Unreliable** (`ordered=false, maxRetransmits=0`) — fire-and-forget delivery with no retransmission attempts. Ideal for position updates and real-time game state where stale data is worse than missing data.
 
 The unreliable channel implements backpressure: if the send buffer exceeds 64KB, packets are silently dropped rather than queuing up and adding latency. If the unreliable channel hasn't been established yet, `sendUnreliable()` transparently falls back to the reliable channel.
+
+## Examples
+
+The [`examples/webrtc-chat`](examples/webrtc-chat) directory contains a complete peer-to-peer chat application built with libGDX and gdx-webrtc. It runs on both Desktop (LWJGL3) and Browser (TeaVM) and demonstrates peer discovery, connecting, and sending messages over reliable data channels.
+
+The example includes its own standalone signaling server in the `signal-server` module:
+
+```bash
+cd examples/webrtc-chat
+./gradlew :signal-server:run           # Start signaling server on port 9090
+./gradlew :lwjgl3:run                  # Run desktop client
+./gradlew :teavm:jettyRun              # Run browser client (http://localhost:8080)
+```
 
 ## Building from Source
 

@@ -48,7 +48,7 @@ All platform modules depend on `core`. The `android` module uses the `com.androi
 
 ## Connection Management Patterns
 
-Ported from the spacedout/voidgun project at `c:/dev/spacedout`. All four platform clients (`DesktopWebRTCClient`, `TeaVMWebRTCClient`, `AndroidWebRTCClient`, `IOSWebRTCClient`) implement the same ICE restart and data channel management logic for their respective platforms.
+All four platform clients (`DesktopWebRTCClient`, `TeaVMWebRTCClient`, `AndroidWebRTCClient`, `IOSWebRTCClient`) implement the same ICE restart and data channel management logic for their respective platforms.
 
 ## Publishing
 

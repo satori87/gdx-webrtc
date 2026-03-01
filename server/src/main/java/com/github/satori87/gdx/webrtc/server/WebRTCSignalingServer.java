@@ -48,6 +48,19 @@ public class WebRTCSignalingServer {
                 SignalMessage welcome = new SignalMessage(SignalMessage.TYPE_WELCOME, 0, peerId, String.valueOf(peerId));
                 conn.send(welcome.toJson());
 
+                // Notify the new peer about every already-connected peer
+                for (Map.Entry<WebSocket, Integer> entry : connToPeer.entrySet()) {
+                    int existingId = entry.getValue();
+                    if (existingId != peerId) {
+                        try {
+                            SignalMessage existing = new SignalMessage(SignalMessage.TYPE_PEER_JOINED, existingId, peerId, String.valueOf(existingId));
+                            conn.send(existing.toJson());
+                        } catch (Exception e) {
+                            // Ignore send failures
+                        }
+                    }
+                }
+
                 // Broadcast PEER_JOINED to all other connected peers
                 SignalMessage joined = new SignalMessage(SignalMessage.TYPE_PEER_JOINED, peerId, 0, String.valueOf(peerId));
                 String joinedJson = joined.toJson();

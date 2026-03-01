@@ -8,8 +8,8 @@ A cross-platform WebRTC library for libGDX (and beyond). Provides a simple, java
 |----------|--------|--------|
 | Desktop (LWJGL3) | `common` | Available |
 | Web (TeaVM) | `teavm` | Available |
-| Android | `android` | Available |
-| iOS (RoboVM) | `ios` | Available |
+| Android | `android` | Available (untested) |
+| iOS (RoboVM) | `ios` | Available (untested) |
 
 ## Setup
 

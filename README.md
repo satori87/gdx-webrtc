@@ -8,7 +8,7 @@ A cross-platform WebRTC library for libGDX (and beyond). Provides a simple, java
 |----------|--------|--------|
 | Desktop (LWJGL3) | `common` | Available |
 | Web (TeaVM) | `teavm` | Available |
-| Android | `android` | Available (untested) |
+| Android | `android` | Available |
 | iOS (RoboVM) | `ios` | Available (untested) |
 
 ## Setup
@@ -348,7 +348,7 @@ The example includes its own standalone signaling server in the `signal-server` 
 cd examples/webrtc-chat
 ./gradlew :signal-server:run           # Start signaling server on port 9090
 ./gradlew :lwjgl3:run                  # Run desktop client
-./gradlew :teavm:jettyRun              # Run browser client (http://localhost:8080)
+./gradlew :teavm:run                   # Run browser client (http://localhost:8080)
 ```
 
 ## Building from Source

@@ -14,6 +14,12 @@ subprojects {
         google()
     }
 
+    configurations.all {
+        resolutionStrategy.dependencySubstitution {
+            substitute module("${rootProject.group}:${project.name}") using project(":${project.name}")
+        }
+    }
+
     if (project.name != 'android') {
         apply plugin: 'java-library'
         apply plugin: 'maven-publish'

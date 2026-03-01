@@ -20,6 +20,15 @@ public interface WebRTCClientListener {
      */
     void onMessage(WebRTCPeer peer, byte[] data, boolean reliable);
 
+    /** Called when the signaling server assigns a local peer ID (TYPE_WELCOME received). */
+    void onSignalingConnected(int localId);
+
+    /** Called when another peer joins the signaling server. */
+    void onPeerJoined(int peerId);
+
+    /** Called when another peer leaves the signaling server. */
+    void onPeerLeft(int peerId);
+
     /** Called when an error occurs. */
     void onError(String error);
 }

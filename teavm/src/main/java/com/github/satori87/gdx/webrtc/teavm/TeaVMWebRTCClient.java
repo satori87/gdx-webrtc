@@ -130,6 +130,7 @@ class TeaVMWebRTCClient implements WebRTCClient, TeaVMSignalingClient.Listener {
             case SignalMessage.TYPE_WELCOME:
                 try { localId = Integer.parseInt(msg.data.trim()); } catch (NumberFormatException e) { /* ignore */ }
                 log("Assigned peer ID: " + localId);
+                if (listener != null) listener.onSignalingConnected(localId);
                 break;
 
             case SignalMessage.TYPE_CONNECT_REQUEST:
@@ -151,6 +152,14 @@ class TeaVMWebRTCClient implements WebRTCClient, TeaVMSignalingClient.Listener {
             case SignalMessage.TYPE_ERROR:
                 log("Signaling error: " + msg.data);
                 if (listener != null) listener.onError(msg.data);
+                break;
+
+            case SignalMessage.TYPE_PEER_JOINED:
+                if (listener != null) listener.onPeerJoined(msg.source);
+                break;
+
+            case SignalMessage.TYPE_PEER_LEFT:
+                if (listener != null) listener.onPeerLeft(msg.source);
                 break;
 
             default:

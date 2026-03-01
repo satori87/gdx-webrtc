@@ -154,6 +154,20 @@ public class MyNetworkGame {
         // config.turnPassword = "mypass";
 
         client = WebRTCClients.newClient(config, new WebRTCClientListener() {
+            public void onSignalingConnected(int localId) {
+                System.out.println("Connected to signaling server, my ID: " + localId);
+            }
+
+            public void onPeerJoined(int peerId) {
+                System.out.println("Peer " + peerId + " joined");
+                // Auto-connect to new peers:
+                // client.connectToPeer(peerId);
+            }
+
+            public void onPeerLeft(int peerId) {
+                System.out.println("Peer " + peerId + " left");
+            }
+
             public void onConnected(WebRTCPeer peer) {
                 System.out.println("Connected to peer " + peer.getId());
             }

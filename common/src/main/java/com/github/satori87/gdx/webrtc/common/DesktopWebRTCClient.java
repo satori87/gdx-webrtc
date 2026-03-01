@@ -152,6 +152,7 @@ class DesktopWebRTCClient implements WebRTCClient, DesktopSignalingClient.Listen
             case SignalMessage.TYPE_WELCOME:
                 localId = Integer.parseInt(msg.data);
                 System.out.println(TAG + "Assigned peer ID: " + localId);
+                if (listener != null) listener.onSignalingConnected(localId);
                 break;
 
             case SignalMessage.TYPE_CONNECT_REQUEST:
@@ -178,9 +179,14 @@ class DesktopWebRTCClient implements WebRTCClient, DesktopSignalingClient.Listen
                 break;
 
             case SignalMessage.TYPE_PEER_JOINED:
+                if (listener != null) listener.onPeerJoined(msg.source);
+                break;
+
             case SignalMessage.TYPE_PEER_LEFT:
+                if (listener != null) listener.onPeerLeft(msg.source);
+                break;
+
             case SignalMessage.TYPE_PEER_LIST:
-                // Informational — could expose via listener in the future
                 break;
         }
     }

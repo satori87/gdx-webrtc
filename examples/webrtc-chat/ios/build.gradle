@@ -1,0 +1,33 @@
+buildscript {
+  repositories {
+    gradlePluginPortal()
+  }
+  dependencies {
+    classpath "com.mobidevelop.robovm:robovm-gradle-plugin:$robovmVersion"
+  }
+}
+
+plugins {
+  id 'java'
+}
+
+apply plugin: 'robovm'
+
+java.sourceCompatibility = JavaVersion.VERSION_1_8
+java.targetCompatibility = JavaVersion.VERSION_1_8
+
+sourceSets.main.resources.srcDirs += [ rootProject.file('assets').path ]
+eclipse.project.name = appName + '-ios'
+
+dependencies {
+  implementation project(':core')
+  implementation "com.badlogicgames.gdx:gdx-backend-robovm:$gdxVersion"
+  implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-ios"
+  implementation "com.github.satori87.gdx-webrtc:ios:$gdxWebRTCVersion"
+  implementation "com.mobidevelop.robovm:robovm-rt:$robovmVersion"
+  implementation "com.mobidevelop.robovm:robovm-cocoatouch:$robovmVersion"
+}
+
+robovm {
+  archs = "thumbv7:arm64"
+}

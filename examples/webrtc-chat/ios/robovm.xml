@@ -1,0 +1,20 @@
+<config>
+    <executableName>${app.executable}</executableName>
+    <mainClass>studio.whitlock.webrtc.chat.ios.IOSLauncher</mainClass>
+    <os>ios</os>
+    <arch>thumbv7:arm64</arch>
+    <target>ios</target>
+    <iosInfoPList>Info.plist.xml</iosInfoPList>
+    <resources>
+        <resource>
+            <directory>data</directory>
+        </resource>
+    </resources>
+    <forceLinkClasses>
+        <pattern>com.badlogic.gdx.backends.iosrobovm.IOSApplication</pattern>
+        <pattern>com.github.satori87.gdx.webrtc.ios.**</pattern>
+    </forceLinkClasses>
+    <frameworks>
+        <framework>WebRTC</framework>
+    </frameworks>
+</config>

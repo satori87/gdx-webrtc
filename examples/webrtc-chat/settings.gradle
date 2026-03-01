@@ -1,0 +1,18 @@
+plugins {
+  // Applies the foojay-resolver plugin to allow automatic download of JDKs.
+  id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+// A list of which subprojects to load as part of the same larger project.
+// You can remove Strings from the list and reload the Gradle project
+// if you want to temporarily disable a subproject.
+include 'lwjgl3', 'teavm', 'core', 'signal-server', 'android', 'ios'
+
+includeBuild('../../') {
+    dependencySubstitution {
+        substitute module('com.github.satori87.gdx-webrtc:core') using project(':core')
+        substitute module('com.github.satori87.gdx-webrtc:common') using project(':common')
+        substitute module('com.github.satori87.gdx-webrtc:android') using project(':android')
+        substitute module('com.github.satori87.gdx-webrtc:teavm') using project(':teavm')
+        substitute module('com.github.satori87.gdx-webrtc:ios') using project(':ios')
+    }
+}

@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.launch
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CLAUDE.md is project-specific, keep it

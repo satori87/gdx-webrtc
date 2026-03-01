@@ -1,0 +1,16 @@
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+dependencies {
+    api project(':core')
+    implementation "org.java-websocket:Java-WebSocket:$javaWebSocketVersion"
+    implementation "dev.onvoid.webrtc:webrtc-java:$webrtcJavaVersion"
+
+    // Platform-specific native libraries
+    runtimeOnly "dev.onvoid.webrtc:webrtc-java:$webrtcJavaVersion:windows-x86_64"
+    runtimeOnly "dev.onvoid.webrtc:webrtc-java:$webrtcJavaVersion:linux-x86_64"
+    runtimeOnly "dev.onvoid.webrtc:webrtc-java:$webrtcJavaVersion:macos-x86_64"
+    runtimeOnly "dev.onvoid.webrtc:webrtc-java:$webrtcJavaVersion:macos-aarch64"
+}

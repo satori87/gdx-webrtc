@@ -1,0 +1,10 @@
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+dependencies {
+    api project(':core')
+    compileOnly 'org.teavm:teavm-jso:0.10.2'
+    compileOnly 'org.teavm:teavm-jso-apis:0.10.2'
+}

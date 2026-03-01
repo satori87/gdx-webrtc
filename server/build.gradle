@@ -1,0 +1,26 @@
+plugins {
+    id 'application'
+}
+
+application.mainClass = 'com.github.satori87.gdx.webrtc.server.SignalingMain'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+dependencies {
+    implementation project(':core')
+    implementation "org.java-websocket:Java-WebSocket:$javaWebSocketVersion"
+}
+
+jar {
+    archiveFileName.set("gdx-webrtc-server-${version}.jar")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn configurations.runtimeClasspath
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
+}

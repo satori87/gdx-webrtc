@@ -1,0 +1,2 @@
+rootProject.name = 'gdx-webrtc'
+include 'core', 'common', 'teavm', 'server'

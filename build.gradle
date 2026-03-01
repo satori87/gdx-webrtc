@@ -1,0 +1,26 @@
+allprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+
+    group = rootProject.group
+    version = rootProject.version
+
+    repositories {
+        mavenCentral()
+        mavenLocal()
+        maven { url = 'https://jitpack.io' }
+        maven { url = 'https://teavm.org/maven/repository/' }
+    }
+
+    java {
+        withSourcesJar()
+    }
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                from components.java
+            }
+        }
+    }
+}

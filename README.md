@@ -30,42 +30,42 @@ allprojects {
 **Your core module** (platform-agnostic game code):
 ```groovy
 dependencies {
-    implementation "com.github.satori87.gdx-webrtc:core:0.1.0"
+    implementation "com.github.satori87.gdx-webrtc:core:$gdxWebRTCVersion"
 }
 ```
 
 **Your desktop/lwjgl3 module:**
 ```groovy
 dependencies {
-    implementation "com.github.satori87.gdx-webrtc:common:0.1.0"
+    implementation "com.github.satori87.gdx-webrtc:common:$gdxWebRTCVersion"
 }
 ```
 
 **Your teavm module:**
 ```groovy
 dependencies {
-    implementation "com.github.satori87.gdx-webrtc:teavm:0.1.0"
+    implementation "com.github.satori87.gdx-webrtc:teavm:$gdxWebRTCVersion"
 }
 ```
 
 **Your android module:**
 ```groovy
 dependencies {
-    implementation "com.github.satori87.gdx-webrtc:android:0.1.0"
+    implementation "com.github.satori87.gdx-webrtc:android:$gdxWebRTCVersion"
 }
 ```
 
 **Your iOS/RoboVM module:**
 ```groovy
 dependencies {
-    implementation "com.github.satori87.gdx-webrtc:ios:0.1.0"
+    implementation "com.github.satori87.gdx-webrtc:ios:$gdxWebRTCVersion"
 }
 ```
 
 **Your server (or standalone signaling/TURN):**
 ```groovy
 dependencies {
-    implementation "com.github.satori87.gdx-webrtc:server:0.1.0"
+    implementation "com.github.satori87.gdx-webrtc:server:$gdxWebRTCVersion"
 }
 ```
 
@@ -218,10 +218,10 @@ A signaling server is required to broker WebRTC connections between peers. It re
 
 ```bash
 # Basic signaling only
-java -jar gdx-webrtc-server-0.1.0.jar --port 9090
+java -jar gdx-webrtc-server-0.2.0.jar --port 9090
 
 # With embedded TURN server for NAT traversal
-java -jar gdx-webrtc-server-0.1.0.jar --port 9090 --turn --turn-port 3478 --turn-host 203.0.113.1
+java -jar gdx-webrtc-server-0.2.0.jar --port 9090 --turn --turn-port 3478 --turn-host 203.0.113.1
 ```
 
 **Ports to open:**

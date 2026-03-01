@@ -4,52 +4,52 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-gdx-webrtc is an open-source WebRTC library designed for use in, but not limited to, libGDX projects. It provides a simple, java-websockets-style API for peer-to-peer connections with data channels. Signaling (SDP/ICE exchange) is hidden from users behind a connect-and-go interface.
+gdx-webrtc is an open-source cross-platform WebRTC library for libGDX (and beyond). It provides a simple, java-websockets-style API for peer-to-peer connections with reliable and unreliable data channels. All signaling complexity (SDP offers/answers, ICE candidates) is hidden behind a connect-and-go interface.
 
 ## Build Commands
 
+Requires JDK 17+ (Gradle 9.x). On this machine: `export JAVA_HOME="/c/Users/sator/.jdks/openjdk-23.0.2"`
+
 ```bash
-./gradlew build          # Build all modules
-./gradlew :core:build    # Build core API only
-./gradlew :server:build  # Build server module only
-./gradlew :server:jar    # Build standalone server JAR
+./gradlew build              # Build all modules
+./gradlew :core:build        # Build single module
+./gradlew :server:jar        # Build standalone server fat JAR
+./gradlew :server:run        # Run signaling server (port 9090)
 ```
+
+No tests exist yet. No linter is configured.
 
 ## Module Architecture
 
-- **core/** — Platform-agnostic API interfaces (pure Java 7, no dependencies)
-- **common/** — Desktop implementation using webrtc-java (`dev.onvoid.webrtc`)
-- **teavm/** — Browser implementation using TeaVM JSO (`@JSBody`/`@JSFunctor`)
-- **server/** — WebSocket signaling server + embedded TURN server (RFC 5766)
+Six modules, all under package `com.github.satori87.gdx.webrtc`:
 
-Package: `com.github.satori87.gdx.webrtc`
+| Module | Purpose | Java Target | Key Dependencies |
+|--------|---------|-------------|-----------------|
+| **core** | Platform-agnostic API interfaces | Java 8 | None |
+| **common** | Desktop implementation | Java 11 | `dev.onvoid.webrtc:webrtc-java`, `Java-WebSocket` |
+| **teavm** | Browser implementation | Java 11 | `teavm-jso`, `teavm-jso-apis` (compileOnly) |
+| **android** | Android implementation | Java 8 | `io.github.webrtc-sdk:android`, `Java-WebSocket` |
+| **ios** | iOS (RoboVM) implementation | Java 8 | `robovm-rt`, `robovm-objc`, `robovm-cocoatouch` (compileOnly), `Java-WebSocket` |
+| **server** | Signaling server + TURN server | Java 11 | `Java-WebSocket` |
 
-## Target Platforms
+All platform modules depend on `core`. The `android` module uses the `com.android.library` Gradle plugin (not `java-library`); the root `build.gradle` excludes it from the `java-library` apply. The `ios` module includes RoboVM binding classes in `ios/bindings/` that map to WebRTC.framework's Objective-C API. The `server` module depends on `core` for `SignalMessage` only.
 
-- **Desktop** (LWJGL3) — via common module
-- **Web** (TeaVM) — via teavm module
-- **Android** — planned (future module)
-- **iOS** (RoboVM/MobiVM) — planned (future module)
+## Java Compatibility Constraint
 
-## Java Compatibility
-
-**All code must use Java 7 language constructs.** No lambdas, method references, streams, or Java 8+ APIs. Core module compiles at Java 8 target; platform modules (common, teavm, server) at Java 11 target. Build requires JDK 17+ (Gradle 9.x requirement). Set `JAVA_HOME` to JDK 23 or similar.
+**All code must use Java 7 language constructs** — no lambdas, method references, streams, try-with-resources, diamond operator on anonymous classes, or Java 8+ APIs. This is for future RoboVM/iOS compatibility. The Java 8/11 compilation targets are the minimum JDK 23 supports.
 
 ## Key Design Patterns
 
-- **Factory pattern**: `WebRTCClients.FACTORY` set by platform init, like gdx-websockets
-- **Signaling hidden**: Users call `connect()`/`connectToPeer()`, library handles SDP/ICE internally via WebSocket to signaling server
-- **Two data channels**: reliable (ordered) + unreliable (unordered, maxRetransmits=0)
-- **ICE restart stability**: 3.5s delay on DISCONNECTED, exponential backoff on FAILED (2s/4s/8s, max 3 retries) — only fires `onDisconnected()` on permanent failure
-- **64KB unreliable buffer limit**: packets silently dropped if congested
+- **Factory pattern**: Users set `WebRTCClients.FACTORY` to a platform-specific factory (e.g., `DesktopWebRTCFactory`, `TeaVMWebRTCFactory`, `AndroidWebRTCFactory`, `IOSWebRTCFactory`) before calling `WebRTCClients.newClient(config, listener)`. `AndroidWebRTCFactory` takes a `Context` parameter in its constructor.
+- **Signaling protocol**: JSON messages (`SignalMessage`) over WebSocket with hand-rolled parser (no JSON library). Types: WELCOME, CONNECT_REQUEST, OFFER, ANSWER, ICE, PEER_LIST, ERROR, PEER_JOINED, PEER_LEFT. The server is a dumb relay that stamps source IDs and forwards to targets. The CONNECT_REQUEST receiver becomes the SDP offerer.
+- **Two data channels per peer**: `sendReliable()` (ordered, unlimited retransmits) and `sendUnreliable()` (unordered, maxRetransmits=0). Unreliable packets are silently dropped if send buffer exceeds 64KB; falls back to reliable if channel unavailable.
+- **ICE restart stability**: On ICE DISCONNECTED, waits 3.5s then restarts ICE. On ICE FAILED, retries with exponential backoff (2s, 4s, 8s, max 3 attempts). `onDisconnected()` only fires after all retries are exhausted.
+- **TeaVM native interop**: Uses `@JSBody` for inline JavaScript and `@JSFunctor` for callback interfaces. All browser WebRTC/WebSocket calls go through static native methods.
 
-## Dependencies
+## Connection Management Patterns
 
-- core: none
-- common: `dev.onvoid.webrtc:webrtc-java`, `org.java-websocket:Java-WebSocket`
-- teavm: `org.teavm:teavm-jso` + `teavm-jso-apis` (compileOnly)
-- server: `org.java-websocket:Java-WebSocket`
+Ported from the spacedout/voidgun project at `c:/dev/spacedout`. All four platform clients (`DesktopWebRTCClient`, `TeaVMWebRTCClient`, `AndroidWebRTCClient`, `IOSWebRTCClient`) implement the same ICE restart and data channel management logic for their respective platforms.
 
-## Reference
+## Publishing
 
-Connection management patterns ported from spacedout/voidgun (`c:/dev/spacedout`).
+Configured for JitPack (`com.github.satori87.gdx-webrtc`). All modules produce sources JARs via `java { withSourcesJar() }`.

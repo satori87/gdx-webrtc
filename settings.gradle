@@ -1,2 +1,10 @@
+pluginManagement {
+    repositories {
+        google()
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 rootProject.name = 'gdx-webrtc'
-include 'core', 'common', 'teavm', 'server'
+include 'core', 'common', 'teavm', 'server', 'android', 'ios'

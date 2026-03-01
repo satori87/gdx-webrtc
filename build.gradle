@@ -1,7 +1,8 @@
-allprojects {
-    apply plugin: 'java-library'
-    apply plugin: 'maven-publish'
+plugins {
+    id 'com.android.library' version '8.7.3' apply false
+}
 
+subprojects {
     group = rootProject.group
     version = rootProject.version
 
@@ -10,16 +11,22 @@ allprojects {
         mavenLocal()
         maven { url = 'https://jitpack.io' }
         maven { url = 'https://teavm.org/maven/repository/' }
+        google()
     }
 
-    java {
-        withSourcesJar()
-    }
+    if (project.name != 'android') {
+        apply plugin: 'java-library'
+        apply plugin: 'maven-publish'
 
-    publishing {
-        publications {
-            maven(MavenPublication) {
-                from components.java
+        java {
+            withSourcesJar()
+        }
+
+        publishing {
+            publications {
+                maven(MavenPublication) {
+                    from components.java
+                }
             }
         }
     }

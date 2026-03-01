@@ -1,0 +1,12 @@
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    api project(':core')
+    implementation "org.java-websocket:Java-WebSocket:$javaWebSocketVersion"
+    compileOnly "com.mobidevelop.robovm:robovm-rt:$robovmVersion"
+    compileOnly "com.mobidevelop.robovm:robovm-objc:$robovmVersion"
+    compileOnly "com.mobidevelop.robovm:robovm-cocoatouch:$robovmVersion"
+}

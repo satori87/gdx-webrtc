@@ -8,8 +8,8 @@ A cross-platform WebRTC library for libGDX (and beyond). Provides a simple, java
 |----------|--------|--------|
 | Desktop (LWJGL3) | `common` | Available |
 | Web (TeaVM) | `teavm` | Available |
-| Android | — | Planned |
-| iOS (RoboVM) | — | Planned |
+| Android | `android` | Available |
+| iOS (RoboVM) | `ios` | Available |
 
 ## Setup
 
@@ -45,6 +45,20 @@ dependencies {
 ```groovy
 dependencies {
     implementation "com.github.satori87.gdx-webrtc:teavm:0.1.0"
+}
+```
+
+**Your android module:**
+```groovy
+dependencies {
+    implementation "com.github.satori87.gdx-webrtc:android:0.1.0"
+}
+```
+
+**Your iOS/RoboVM module:**
+```groovy
+dependencies {
+    implementation "com.github.satori87.gdx-webrtc:ios:0.1.0"
 }
 ```
 
@@ -84,6 +98,37 @@ public class TeaVMLauncher {
     }
 }
 ```
+
+**Android launcher:**
+```java
+import com.github.satori87.gdx.webrtc.WebRTCClients;
+import com.github.satori87.gdx.webrtc.android.AndroidWebRTCFactory;
+
+public class AndroidLauncher extends AndroidApplication {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        WebRTCClients.FACTORY = new AndroidWebRTCFactory(this);
+        // ... create your libGDX application as normal ...
+    }
+}
+```
+
+**iOS launcher (RoboVM):**
+```java
+import com.github.satori87.gdx.webrtc.WebRTCClients;
+import com.github.satori87.gdx.webrtc.ios.IOSWebRTCFactory;
+
+public class IOSLauncher extends IOSApplication.Delegate {
+    @Override
+    protected IOSApplication createApplication() {
+        WebRTCClients.FACTORY = new IOSWebRTCFactory();
+        // ... create your libGDX application as normal ...
+    }
+}
+```
+
+> **iOS note:** Your RoboVM project must include `WebRTC.framework` in its `robovm.xml` configuration. Obtain it via CocoaPods (`GoogleWebRTC`) or as a prebuilt framework from webrtc.org.
 
 ### 4. Use in Game Code
 

@@ -1,0 +1,44 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+}
+
+android {
+    namespace 'com.github.satori87.gdx.webrtc.android'
+    compileSdk 35
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 35
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = project.group
+                artifactId = project.name
+                version = project.version
+            }
+        }
+    }
+}
+
+dependencies {
+    api project(':core')
+    implementation "org.java-websocket:Java-WebSocket:$javaWebSocketVersion"
+    implementation "io.github.webrtc-sdk:android:$androidWebRtcVersion"
+}

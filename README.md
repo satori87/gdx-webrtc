@@ -389,15 +389,6 @@ The design choices in this library are grounded in IETF standards, peer-reviewed
 - Mahmoud & Abozariba, [A Systematic Review on WebRTC Beyond Audio/Video Streaming](https://link.springer.com/article/10.1007/s11042-024-20448-9) (Springer Multimedia Tools and Applications, 2024) — Reviews 83 WebRTC studies, identifies gaming as a key application area
 - Ilya Grigorik, [High Performance Browser Networking — WebRTC](https://hpbn.co/webrtc/) (O'Reilly, 2013) — Authoritative reference on WebRTC data channels for application data
 
-### Cross-Platform Abstraction
-
-- Gamma, Helm, Johnson & Vlissides, [Design Patterns: Elements of Reusable Object-Oriented Software](https://en.wikipedia.org/wiki/Design_Patterns) (1994) — Defines the Abstract Factory pattern used by `WebRTCClients.FACTORY`
-
-### API Simplification (Hiding SDP/ICE Complexity)
-
-- [RFC 8829 — JSEP](https://datatracker.ietf.org/doc/html/rfc8829) (2021) — Decouples the ICE state machine from the signaling state machine so complexity is managed by the framework
-- Sean DuBois et al., [WebRTC for the Curious — Signaling](https://webrtcforthecurious.com/docs/02-signaling/) — Notes the lack of standardized signaling has been an obstacle to WebRTC adoption
-
 ## Building from Source
 
 Requires JDK 17+ (Gradle 9.x requirement).

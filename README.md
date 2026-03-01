@@ -256,6 +256,24 @@ The library handles transient WebRTC disconnects automatically:
 
 This means brief network blips won't trigger false disconnects.
 
+## Network Architecture
+
+gdx-webrtc is a peer-to-peer library — all data flows directly between peers over WebRTC data channels. There is no dedicated server relay for game traffic (unless TURN is needed for NAT traversal).
+
+This does not prevent you from using a client/server model. One peer simply acts as the authoritative host while other peers connect to it. The host maintains multiple `WebRTCPeer` connections and handles game logic — validating input, updating game state, and broadcasting results to connected peers. From WebRTC's perspective they're all equal peers, but in your game code the host is the authority.
+
+```
+          Signaling Server (WebSocket)
+         /        |        \
+     setup      setup     setup        ← signaling only (SDP + ICE)
+       /          |          \
+   [Host] ←——→ [Peer A]
+   [Host] ←——→ [Peer B]               ← direct WebRTC data channels
+   [Host] ←——→ [Peer C]
+```
+
+The signaling server brokers the initial WebRTC handshake and then gets out of the way. All game data flows directly between the host and each peer.
+
 ## STUN / TURN
 
 - **STUN** helps peers discover their public IP for direct connections. Defaults to Google's public STUN server (`stun:stun.l.google.com:19302`).

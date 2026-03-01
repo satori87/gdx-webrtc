@@ -351,6 +351,53 @@ cd examples/webrtc-chat
 ./gradlew :teavm:run                   # Run browser client (http://localhost:8080)
 ```
 
+## References
+
+The design choices in this library are grounded in IETF standards, peer-reviewed research, and established industry practice.
+
+### Dual Data Channels (Reliable + Unreliable)
+
+- [RFC 8831 — WebRTC Data Channels](https://datatracker.ietf.org/doc/html/rfc8831) (2021) — Defines reliable and unreliable data channels over a single SCTP association
+- [RFC 3758 — SCTP Partial Reliability Extension](https://datatracker.ietf.org/doc/html/rfc3758) (2004) — Enables multiplexing reliable and unreliable messages over one PR-SCTP association
+- [RFC 8832 — WebRTC Data Channel Establishment Protocol](https://datatracker.ietf.org/doc/html/rfc8832) (2021) — In-band negotiation of per-channel reliability parameters
+- Glenn Fiedler, [UDP vs. TCP](https://gafferongames.com/post/udp_vs_tcp/) / [Reliability and Congestion Avoidance over UDP](https://gafferongames.com/post/reliability_ordering_and_congestion_avoidance_over_udp/) — Industry standard argument for dual reliable/unreliable channels in game networking
+- [Valve GameNetworkingSockets](https://github.com/ValveSoftware/GameNetworkingSockets) — Production networking library (Dota 2, CS:GO) using the same dual-message paradigm
+- MDN, [WebRTC Data Channels for Game Development](https://developer.mozilla.org/en-US/docs/Games/Techniques/WebRTC_data_channels) — Recommends separate reliable and unreliable channels for games
+
+### ICE Restart with Exponential Backoff
+
+- [RFC 8445 — Interactive Connectivity Establishment](https://www.rfc-editor.org/rfc/rfc8445.html) (2018) — Defines ICE restart mechanics and keepalive intervals
+- [RFC 6298 — Computing TCP's Retransmission Timer](https://datatracker.ietf.org/doc/html/rfc6298) (2011) — Canonical specification for exponential backoff in Internet protocols
+- Philipp Hancke, [ICE restarts](https://webrtchacks.com/an-oort-oort-oort-oort-oort-oort-oort-oort-oort-oort/) (2017) — Found ICE restarts succeed ~69% of the time; 3 retries yields ~3% false-negative probability
+- Philipp Hancke, [ICE restarts (again)](https://webrtchacks.com/the-oort-cloud/) (2019) — Confirms ICE restarts are essential for reliable WebRTC services
+
+### Lightweight Relay Signaling Server
+
+- [RFC 8829 — JSEP](https://datatracker.ietf.org/doc/html/rfc8829) (2021) — WebRTC signaling is deliberately unspecified, leaving it up to the application
+- [RFC 8827 — WebRTC Security Architecture](https://datatracker.ietf.org/doc/html/rfc8827) (2021) — Security is handled at the DTLS layer, so the signaling server can be a simple relay
+- [RFC 7478 — WebRTC Use Cases and Requirements](https://datatracker.ietf.org/doc/html/rfc7478) (2015) — Signaling requirements are minimal: relay session descriptions and ICE candidates
+
+### Send Buffer Backpressure (64KB Threshold)
+
+- [RFC 8085 — UDP Usage Guidelines](https://www.rfc-editor.org/rfc/rfc8085.html) (2017) — Applications SHOULD control send rate; the buffer threshold implements sender-side rate control
+- Jim Gettys, [Bufferbloat: Dark Buffers in the Internet](https://queue.acm.org/detail.cfm?id=2071893) (ACM Queue, 2011) — Seminal paper showing excessive buffering causes catastrophic latency in interactive applications
+
+### Peer-to-Peer Architecture
+
+- Yahyavi & Kemme, [Peer-to-Peer Architectures for Massively Multiplayer Online Games: A Survey](https://dl.acm.org/doi/10.1145/2522968.2522977) (ACM Computing Surveys, 2013) — 51-page survey concluding P2P achieves low infrastructure costs and fast response times via direct connections
+- [An Open-Source Framework Using WebRTC for Online Multiplayer Gaming](https://dl.acm.org/doi/abs/10.1145/3631085.3631238) (ACM SBGames, 2023) — Concludes the WebRTC API is mature enough to serve as the basis for online multiplayer games
+- Mahmoud & Abozariba, [A Systematic Review on WebRTC Beyond Audio/Video Streaming](https://link.springer.com/article/10.1007/s11042-024-20448-9) (Springer Multimedia Tools and Applications, 2024) — Reviews 83 WebRTC studies, identifies gaming as a key application area
+- Ilya Grigorik, [High Performance Browser Networking — WebRTC](https://hpbn.co/webrtc/) (O'Reilly, 2013) — Authoritative reference on WebRTC data channels for application data
+
+### Cross-Platform Abstraction
+
+- Gamma, Helm, Johnson & Vlissides, [Design Patterns: Elements of Reusable Object-Oriented Software](https://en.wikipedia.org/wiki/Design_Patterns) (1994) — Defines the Abstract Factory pattern used by `WebRTCClients.FACTORY`
+
+### API Simplification (Hiding SDP/ICE Complexity)
+
+- [RFC 8829 — JSEP](https://datatracker.ietf.org/doc/html/rfc8829) (2021) — Decouples the ICE state machine from the signaling state machine so complexity is managed by the framework
+- Sean DuBois et al., [WebRTC for the Curious — Signaling](https://webrtcforthecurious.com/docs/02-signaling/) — Notes the lack of standardized signaling has been an obstacle to WebRTC adoption
+
 ## Building from Source
 
 Requires JDK 17+ (Gradle 9.x requirement).

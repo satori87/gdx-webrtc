@@ -389,14 +389,6 @@ The design choices in this library are grounded in IETF standards, peer-reviewed
 - Mahmoud & Abozariba, [A Systematic Review on WebRTC Beyond Audio/Video Streaming](https://link.springer.com/article/10.1007/s11042-024-20448-9) (Springer Multimedia Tools and Applications, 2024) — Reviews 83 WebRTC studies, identifies gaming as a key application area
 - Ilya Grigorik, [High Performance Browser Networking — WebRTC](https://hpbn.co/webrtc/) (O'Reilly, 2013) — Authoritative reference on WebRTC data channels for application data
 
-## Building from Source
-
-Requires JDK 17+ (Gradle 9.x requirement).
-
-```bash
-./gradlew build
-```
-
 ## License
 
-Open source. See LICENSE file for details.
+Licensed under the [Apache License, Version 2.0](LICENSE). Same license as [libGDX](https://github.com/libgdx/libgdx).

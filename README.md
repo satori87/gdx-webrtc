@@ -258,6 +258,63 @@ This means brief network blips won't trigger false disconnects.
 
 The server module includes a built-in TURN server (RFC 5766, UDP) that can run alongside the signaling server.
 
+## How It Works Under the Hood
+
+### Standards and Protocols
+
+gdx-webrtc is built on real protocol specifications, not ad-hoc networking:
+
+| Component | Specification | What It Does |
+|-----------|--------------|--------------|
+| **STUN** | [RFC 5389](https://tools.ietf.org/html/rfc5389) | Session Traversal Utilities for NAT — peers discover their public-facing IP and port by querying a STUN server |
+| **TURN** | [RFC 5766](https://tools.ietf.org/html/rfc5766) | Traversal Using Relays around NAT — when direct peer-to-peer fails (symmetric NAT, corporate firewalls), traffic is relayed through a TURN server |
+| **ICE** | [RFC 8445](https://tools.ietf.org/html/rfc8445) | Interactive Connectivity Establishment — the framework that coordinates STUN and TURN to find the best connection path between two peers |
+| **SDP** | [RFC 4566](https://tools.ietf.org/html/rfc4566) / [RFC 3264](https://tools.ietf.org/html/rfc3264) | Session Description Protocol — the offer/answer model used to negotiate media capabilities and connection parameters |
+| **WebRTC Data Channels** | [RFC 8831](https://tools.ietf.org/html/rfc8831) | SCTP-based data channels over DTLS — the transport layer that carries your actual game data |
+
+### Embedded TURN Server
+
+The server module includes a fully functional TURN server implementing RFC 5766 over UDP. It handles the complete TURN lifecycle:
+
+- **Allocate** — clients request a relay address; the server assigns a dedicated UDP socket and returns the relay endpoint
+- **CreatePermission** — clients authorize which peer IPs may send data through the relay
+- **ChannelBind** — binds a channel number (0x4000–0x7FFF) to a peer address for fast-path data forwarding (4-byte header instead of full STUN framing)
+- **Refresh** — clients extend or terminate their allocation lifetime (default 600s, max 3600s)
+- **Send/Data indications** — relay data to/from peers before channel binding is established
+
+Authentication uses the long-term credential mechanism from RFC 5389: MD5-hashed `username:realm:password` keys with HMAC-SHA1 message integrity verification. Nonces are generated per-client to prevent replay attacks.
+
+### Signaling Architecture
+
+WebRTC requires an out-of-band signaling mechanism to exchange SDP offers/answers and ICE candidates before peers can connect directly. This library uses a lightweight WebSocket-based signaling server that:
+
+1. Assigns each connecting client a unique peer ID
+2. Acts as a dumb relay — stamps the source ID on messages and forwards them to the target peer
+3. Broadcasts `PEER_JOINED`/`PEER_LEFT` events so clients can discover each other
+4. Gets out of the way once peers establish a direct connection
+
+The signaling protocol is a simple JSON format: `{"type":N, "source":S, "target":T, "data":"..."}` with a hand-rolled parser (no JSON library dependency).
+
+### ICE Restart Strategy
+
+WebRTC connections can experience transient failures due to network changes (Wi-Fi to cellular, brief outages, NAT rebinding). Naively treating every ICE state change as a disconnect leads to false disconnects that ruin the user experience. This library implements a graduated restart strategy:
+
+1. **ICE DISCONNECTED** — not immediately fatal. A timer is set (default 3.5s). If the connection recovers before the timer fires, nothing happens. If still disconnected, ICE is restarted.
+2. **ICE FAILED** — more serious. The library retries with exponential backoff (2s, 4s, 8s) up to 3 attempts. Each retry performs a full ICE restart.
+3. **ICE CONNECTED** — all retry counters and timers are reset. A recovered connection is treated as fresh.
+4. **Permanent failure** — `onDisconnected()` only fires after all retry attempts are exhausted, meaning the connection is genuinely lost.
+
+The disconnect timer uses timestamp-stamping to prevent stale timers from triggering restarts on already-recovered connections.
+
+### Data Channel Design
+
+Each peer connection creates two SCTP data channels with different reliability characteristics:
+
+- **Reliable** (`ordered=true`) — uses SCTP's full reliability: messages are delivered in order with unlimited retransmissions. Used for chat, commands, and any data that must arrive.
+- **Unreliable** (`ordered=false, maxRetransmits=0`) — fire-and-forget delivery with no retransmission attempts. Ideal for position updates and real-time game state where stale data is worse than missing data.
+
+The unreliable channel implements backpressure: if the send buffer exceeds 64KB, packets are silently dropped rather than queuing up and adding latency. If the unreliable channel hasn't been established yet, `sendUnreliable()` transparently falls back to the reliable channel.
+
 ## Building from Source
 
 Requires JDK 17+ (Gradle 9.x requirement).

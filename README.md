@@ -216,31 +216,12 @@ public class MyNetworkGame {
 
 A signaling server is required to broker WebRTC connections between peers. It relays SDP offers/answers and ICE candidates, then gets out of the way once peers connect directly.
 
-**Option A — Standalone:**
 ```bash
 # Basic signaling only
 java -jar gdx-webrtc-server-0.1.0.jar --port 9090
 
 # With embedded TURN server for NAT traversal
 java -jar gdx-webrtc-server-0.1.0.jar --port 9090 --turn --turn-port 3478 --turn-host 203.0.113.1
-```
-
-**Option B — Embedded in your own server:**
-```java
-import com.github.satori87.gdx.webrtc.server.WebRTCSignalingServer;
-import com.github.satori87.gdx.webrtc.server.turn.TurnServer;
-import com.github.satori87.gdx.webrtc.server.turn.TurnConfig;
-
-// Start signaling server
-WebRTCSignalingServer signaling = new WebRTCSignalingServer(9090);
-signaling.start();
-
-// Optional: start embedded TURN server
-TurnConfig turnConfig = new TurnConfig();
-turnConfig.port = 3478;
-turnConfig.host = "203.0.113.1"; // your public IP
-TurnServer turn = new TurnServer(turnConfig);
-turn.start();
 ```
 
 ## Data Channels

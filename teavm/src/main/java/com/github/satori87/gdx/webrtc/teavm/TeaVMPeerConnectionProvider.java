@@ -178,33 +178,8 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @return always {@code true}
      */
     public boolean initialize() {
-        runIceDiagnostic();
         return true;
     }
-
-    @JSBody(script =
-            "console.log('[BARE-TEST] Creating independent RTCPeerConnection...');"
-            + "var testPc = new RTCPeerConnection({iceServers: [{urls: 'stun:stun.l.google.com:19302'}]});"
-            + "testPc.createDataChannel('test');"
-            + "testPc.onicecandidate = function(e) {"
-            + "  console.log('[BARE-TEST] ICE candidate: ' + (e.candidate ? e.candidate.candidate : 'null (end)'));"
-            + "};"
-            + "testPc.onicegatheringstatechange = function() {"
-            + "  console.log('[BARE-TEST] Gathering state: ' + testPc.iceGatheringState);"
-            + "  if(testPc.iceGatheringState === 'complete') {"
-            + "    var sdp = testPc.localDescription ? testPc.localDescription.sdp : 'no local desc';"
-            + "    console.log('[BARE-TEST] Final candidates in SDP: ' + (sdp.match(/a=candidate/g)||[]).length);"
-            + "    testPc.close();"
-            + "  }"
-            + "};"
-            + "testPc.createOffer().then(function(o) {"
-            + "  return testPc.setLocalDescription(o);"
-            + "}).then(function() {"
-            + "  console.log('[BARE-TEST] Local desc set, gathering=' + testPc.iceGatheringState);"
-            + "}).catch(function(e) {"
-            + "  console.log('[BARE-TEST] Error: ' + e);"
-            + "});")
-    private static native void runIceDiagnostic();
 
     /**
      * Creates a native browser {@code RTCPeerConnection} with the given configuration.
@@ -609,9 +584,16 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
     @JSBody(params = {"stunUrl", "turnUrl", "turnUser", "turnPass", "forceRelay"}, script =
             "var servers = [{urls: stunUrl}];"
             + "if(turnUrl && turnUrl.length > 0) servers.push({urls: turnUrl, username: turnUser || '', credential: turnPass || ''});"
-            + "var cfg = {iceServers: servers, iceCandidatePoolSize: 1};"
+            + "var cfg = {iceServers: servers};"
             + "if(forceRelay) { cfg.iceTransportPolicy = 'relay'; }"
             + "console.log('[WebRTC-JS] Creating PC with config:', JSON.stringify(cfg));"
+            + "var testPc = new RTCPeerConnection({iceServers: [{urls: 'stun:stun.l.google.com:19302'}]});"
+            + "testPc.createDataChannel('baretest');"
+            + "testPc.onicecandidate = function(e) {"
+            + "  console.log('[BARE-TEST] ICE: ' + (e.candidate ? e.candidate.candidate : 'null'));"
+            + "};"
+            + "testPc.createOffer().then(function(o){ return testPc.setLocalDescription(o); })"
+            + ".then(function(){ console.log('[BARE-TEST] localDesc set, gathering=' + testPc.iceGatheringState); });"
             + "return new RTCPeerConnection(cfg);")
     private static native JSObject createPeerConnectionNative(String stunUrl, String turnUrl,
                                                                String turnUser, String turnPass,

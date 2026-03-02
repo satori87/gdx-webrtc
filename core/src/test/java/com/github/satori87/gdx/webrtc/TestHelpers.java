@@ -5,26 +5,29 @@ import java.util.List;
 
 /**
  * Shared mock implementations of strategy interfaces for unit tests.
+ *
+ * <p>Public so that tests in the {@code transport} subpackage can reuse
+ * these mocks.</p>
  */
-class TestHelpers {
+public class TestHelpers {
 
     /** Mock PeerConnectionProvider that records calls. */
-    static class MockPeerConnectionProvider implements PeerConnectionProvider {
-        boolean initialized;
-        boolean initializeResult = true;
-        Object lastCreatedPc = new Object();
-        List<String> calls = new ArrayList<String>();
-        SdpResultCallback lastOfferCallback;
-        SdpResultCallback lastHandleOfferCallback;
-        String lastRemoteAnswerSdp;
-        String lastIceCandidateJson;
-        DataChannelEventHandler lastDcHandler;
-        PeerEventHandler lastPcHandler;
-        long bufferedAmount = 0;
-        boolean channelOpen = true;
-        Object reliableChannel = new Object();
-        Object unreliableChannel = new Object();
-        List<byte[]> sentData = new ArrayList<byte[]>();
+    public static class MockPeerConnectionProvider implements PeerConnectionProvider {
+        public boolean initialized;
+        public boolean initializeResult = true;
+        public Object lastCreatedPc = new Object();
+        public List<String> calls = new ArrayList<String>();
+        public SdpResultCallback lastOfferCallback;
+        public SdpResultCallback lastHandleOfferCallback;
+        public String lastRemoteAnswerSdp;
+        public String lastIceCandidateJson;
+        public DataChannelEventHandler lastDcHandler;
+        public PeerEventHandler lastPcHandler;
+        public long bufferedAmount = 0;
+        public boolean channelOpen = true;
+        public Object reliableChannel = new Object();
+        public Object unreliableChannel = new Object();
+        public List<byte[]> sentData = new ArrayList<byte[]>();
 
         public boolean initialize() {
             calls.add("initialize");
@@ -94,11 +97,11 @@ class TestHelpers {
     }
 
     /** Mock SignalingProvider that records calls. */
-    static class MockSignalingProvider implements SignalingProvider {
-        SignalingEventHandler handler;
-        boolean open;
-        List<SignalMessage> sentMessages = new ArrayList<SignalMessage>();
-        List<String> calls = new ArrayList<String>();
+    public static class MockSignalingProvider implements SignalingProvider {
+        public SignalingEventHandler handler;
+        public boolean open;
+        public List<SignalMessage> sentMessages = new ArrayList<SignalMessage>();
+        public List<String> calls = new ArrayList<String>();
 
         public void connect(String url, SignalingEventHandler handler) {
             calls.add("connect");
@@ -121,16 +124,16 @@ class TestHelpers {
         }
 
         /** Simulate receiving a signaling message. */
-        void simulateMessage(SignalMessage msg) {
+        public void simulateMessage(SignalMessage msg) {
             handler.onMessage(msg);
         }
     }
 
     /** Mock Scheduler that captures scheduled tasks for manual execution. */
-    static class MockScheduler implements Scheduler {
-        List<ScheduledTask> tasks = new ArrayList<ScheduledTask>();
-        List<String> calls = new ArrayList<String>();
-        int nextId = 1;
+    public static class MockScheduler implements Scheduler {
+        public List<ScheduledTask> tasks = new ArrayList<ScheduledTask>();
+        public List<String> calls = new ArrayList<String>();
+        public int nextId = 1;
 
         public Object schedule(Runnable task, long delayMs) {
             calls.add("schedule:" + delayMs);
@@ -154,7 +157,7 @@ class TestHelpers {
         }
 
         /** Run the last scheduled task (if not cancelled). */
-        void runLast() {
+        public void runLast() {
             if (!tasks.isEmpty()) {
                 ScheduledTask last = tasks.get(tasks.size() - 1);
                 if (!last.cancelled) {
@@ -164,7 +167,7 @@ class TestHelpers {
         }
 
         /** Run all non-cancelled tasks. */
-        void runAll() {
+        public void runAll() {
             for (int i = 0; i < tasks.size(); i++) {
                 ScheduledTask t = tasks.get(i);
                 if (!t.cancelled) {
@@ -174,11 +177,11 @@ class TestHelpers {
         }
     }
 
-    static class ScheduledTask {
-        final int id;
-        final Runnable task;
-        final long delayMs;
-        boolean cancelled;
+    public static class ScheduledTask {
+        public final int id;
+        public final Runnable task;
+        public final long delayMs;
+        public boolean cancelled;
 
         ScheduledTask(int id, Runnable task, long delayMs) {
             this.id = id;
@@ -188,15 +191,15 @@ class TestHelpers {
     }
 
     /** Mock WebRTCClientListener that records calls. */
-    static class MockListener implements WebRTCClientListener {
-        int signalingConnectedId = -1;
-        List<WebRTCPeer> connectedPeers = new ArrayList<WebRTCPeer>();
-        List<WebRTCPeer> disconnectedPeers = new ArrayList<WebRTCPeer>();
-        List<Integer> joinedPeers = new ArrayList<Integer>();
-        List<Integer> leftPeers = new ArrayList<Integer>();
-        List<String> errors = new ArrayList<String>();
-        List<byte[]> receivedData = new ArrayList<byte[]>();
-        List<Boolean> receivedReliable = new ArrayList<Boolean>();
+    public static class MockListener implements WebRTCClientListener {
+        public int signalingConnectedId = -1;
+        public List<WebRTCPeer> connectedPeers = new ArrayList<WebRTCPeer>();
+        public List<WebRTCPeer> disconnectedPeers = new ArrayList<WebRTCPeer>();
+        public List<Integer> joinedPeers = new ArrayList<Integer>();
+        public List<Integer> leftPeers = new ArrayList<Integer>();
+        public List<String> errors = new ArrayList<String>();
+        public List<byte[]> receivedData = new ArrayList<byte[]>();
+        public List<Boolean> receivedReliable = new ArrayList<Boolean>();
 
         public void onSignalingConnected(int localId) {
             signalingConnectedId = localId;

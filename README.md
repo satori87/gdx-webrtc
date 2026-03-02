@@ -218,10 +218,10 @@ A signaling server is required to broker WebRTC connections between peers. It re
 
 ```bash
 # Basic signaling only
-java -jar gdx-webrtc-server-0.2.0.jar --port 9090
+java -jar gdx-webrtc-server-0.3.0.jar --port 9090
 
 # With embedded TURN server for NAT traversal
-java -jar gdx-webrtc-server-0.2.0.jar --port 9090 --turn --turn-port 3478 --turn-host 203.0.113.1
+java -jar gdx-webrtc-server-0.3.0.jar --port 9090 --turn --turn-port 3478 --turn-host 203.0.113.1
 ```
 
 **Ports to open:**

@@ -10,8 +10,9 @@ import com.github.satori87.gdx.webrtc.transport.WebRTCTransports;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Manages a client connection to the chat server using WebRTCClientTransport
- * with external signaling over a WebSocket.
+ * Manages a client connection to a hosted chat server using WebRTCClientTransport.
+ * Connects to the gdx-webrtc signaling server and exchanges SDP/ICE with the host
+ * using the SignalMessage protocol.
  */
 public class ConnectionManager {
 
@@ -26,13 +27,15 @@ public class ConnectionManager {
     private final ChatCallback callback;
     private WebRTCClientTransport transport;
     private boolean connected;
+    private int localPeerId = -1;
+    private int hostPeerId = -1;
 
     public ConnectionManager(ChatSignalClient signalClient, ChatCallback callback) {
         this.signalClient = signalClient;
         this.callback = callback;
     }
 
-    public void connect(String serverUrl) {
+    public void connect(String relayUrl) {
         WebRTCConfiguration config = new WebRTCConfiguration();
         transport = WebRTCTransports.newClientTransport(config);
         transport.setListener(new TransportListener() {
@@ -72,9 +75,9 @@ public class ConnectionManager {
             }
         });
 
-        signalClient.connect(serverUrl, new ChatSignalClient.Listener() {
+        signalClient.connect(relayUrl, new ChatSignalClient.Listener() {
             public void onOpen() {
-                // Server will send us an offer
+                // Wait for WELCOME message
             }
 
             public void onMessage(String text) {
@@ -102,23 +105,93 @@ public class ConnectionManager {
     }
 
     private void handleSignalingMessage(String json) {
-        String type = SignalMessage.extractString(json, "type");
-        if ("offer".equals(type)) {
-            String sdp = SignalMessage.extractString(json, "sdp");
-            transport.connectWithOffer(sdp, new WebRTCClientTransport.SignalCallback() {
-                public void onAnswer(String sdpAnswer) {
-                    signalClient.send("{\"type\":\"answer\",\"sdp\":\""
-                            + SignalMessage.escapeJson(sdpAnswer) + "\"}");
-                }
+        SignalMessage msg = SignalMessage.fromJson(json);
+        if (msg == null) return;
 
-                public void onIceCandidate(String iceJson) {
-                    signalClient.send("{\"type\":\"ice\",\"candidate\":\""
-                            + SignalMessage.escapeJson(iceJson) + "\"}");
+        switch (msg.type) {
+            case SignalMessage.TYPE_WELCOME:
+                localPeerId = Integer.parseInt(msg.data);
+                break;
+
+            case SignalMessage.TYPE_PEER_JOINED:
+                // The first peer we see is the host — send a connect request
+                if (hostPeerId < 0) {
+                    hostPeerId = msg.source;
+                    sendConnectRequest(hostPeerId);
                 }
-            });
-        } else if ("ice".equals(type)) {
-            String candidate = SignalMessage.extractString(json, "candidate");
-            transport.addIceCandidate(candidate);
+                break;
+
+            case SignalMessage.TYPE_PEER_LIST:
+                // Pick the first peer in the list as the host
+                if (hostPeerId < 0 && msg.data != null && !msg.data.isEmpty()) {
+                    String[] ids = msg.data.split(",");
+                    for (String id : ids) {
+                        int peerId = Integer.parseInt(id.trim());
+                        if (peerId != localPeerId) {
+                            hostPeerId = peerId;
+                            sendConnectRequest(hostPeerId);
+                            break;
+                        }
+                    }
+                }
+                break;
+
+            case SignalMessage.TYPE_OFFER:
+                hostPeerId = msg.source;
+                handleOffer(msg.source, msg.data);
+                break;
+
+            case SignalMessage.TYPE_ICE:
+                handleIce(msg.data);
+                break;
+
+            case SignalMessage.TYPE_PEER_LEFT:
+                if (msg.source == hostPeerId && connected) {
+                    connected = false;
+                    Gdx.app.postRunnable(new Runnable() {
+                        public void run() {
+                            callback.onDisconnected();
+                        }
+                    });
+                }
+                break;
+
+            case SignalMessage.TYPE_ERROR:
+                final String errorData = msg.data;
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        callback.onError(errorData);
+                    }
+                });
+                break;
+        }
+    }
+
+    private void sendConnectRequest(int targetPeerId) {
+        SignalMessage req = new SignalMessage(
+                SignalMessage.TYPE_CONNECT_REQUEST, localPeerId, targetPeerId, "");
+        signalClient.send(req.toJson());
+    }
+
+    private void handleOffer(final int fromPeerId, String sdp) {
+        transport.connectWithOffer(sdp, new WebRTCClientTransport.SignalCallback() {
+            public void onAnswer(String sdpAnswer) {
+                SignalMessage answer = new SignalMessage(
+                        SignalMessage.TYPE_ANSWER, localPeerId, fromPeerId, sdpAnswer);
+                signalClient.send(answer.toJson());
+            }
+
+            public void onIceCandidate(String iceJson) {
+                SignalMessage ice = new SignalMessage(
+                        SignalMessage.TYPE_ICE, localPeerId, fromPeerId, iceJson);
+                signalClient.send(ice.toJson());
+            }
+        });
+    }
+
+    private void handleIce(String iceJson) {
+        if (transport != null) {
+            transport.addIceCandidate(iceJson);
         }
     }
 

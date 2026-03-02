@@ -20,7 +20,6 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.ChatCallback {
 
     private final ChatSignalClient signalClient;
-    private final ChatSignalServer signalServer;
     private Stage stage;
     private Skin skin;
     private ConnectionManager connectionManager;
@@ -37,12 +36,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
     private StringBuilder messageBuffer = new StringBuilder();
 
     public WebRtcChat(ChatSignalClient signalClient) {
-        this(signalClient, null);
-    }
-
-    public WebRtcChat(ChatSignalClient signalClient, ChatSignalServer signalServer) {
         this.signalClient = signalClient;
-        this.signalServer = signalServer;
     }
 
     @Override
@@ -67,27 +61,25 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         title.setFontScale(2f);
         root.add(title).padBottom(40).row();
 
-        if (signalServer != null) {
-            TextButton hostButton = new TextButton("Host Server (port 9090)", skin);
-            hostButton.addListener(new ClickListener() {
-                @Override
-                public void clicked(InputEvent event, float x, float y) {
-                    startHosting();
-                }
-            });
-            root.add(hostButton).width(300).height(50).padBottom(20).row();
+        Label addressLabel = new Label("Signal server address:", skin);
+        root.add(addressLabel).padBottom(10).row();
 
-            Label orLabel = new Label("-- or connect to a host --", skin);
-            orLabel.setColor(Color.LIGHT_GRAY);
-            root.add(orLabel).padBottom(10).row();
-        } else {
-            Label connectLabel = new Label("Enter server address:", skin);
-            root.add(connectLabel).padBottom(10).row();
-        }
-
-        Table connectRow = new Table();
+        Table addressRow = new Table();
         final TextField ipField = new TextField("localhost", skin);
-        ipField.setMessageText("Server IP address");
+        ipField.setMessageText("Signal server IP");
+        addressRow.add(ipField).width(250).height(40);
+        root.add(addressRow).padBottom(20).row();
+
+        Table buttonRow = new Table();
+        TextButton hostButton = new TextButton("Host Server", skin);
+        hostButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                String ip = ipField.getText().trim();
+                if (ip.isEmpty()) ip = "localhost";
+                startHosting(ip);
+            }
+        });
         TextButton connectButton = new TextButton("Connect", skin);
         connectButton.addListener(new ClickListener() {
             @Override
@@ -97,14 +89,14 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
                 startConnection(ip);
             }
         });
-        connectRow.add(ipField).width(250).height(40).padRight(10);
-        connectRow.add(connectButton).width(100).height(40);
-        root.add(connectRow).row();
+        buttonRow.add(hostButton).width(150).height(50).padRight(10);
+        buttonRow.add(connectButton).width(150).height(50);
+        root.add(buttonRow).row();
     }
 
-    private void startHosting() {
+    private void startHosting(String ip) {
         hosting = true;
-        embeddedServer = new EmbeddedChatServer(signalServer, new EmbeddedChatServer.HostCallback() {
+        embeddedServer = new EmbeddedChatServer(signalClient, new EmbeddedChatServer.HostCallback() {
             public void onStarted() {
                 buildChatUI();
             }
@@ -122,7 +114,8 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
                 }
             }
         });
-        embeddedServer.start(9090);
+        embeddedServer.start("ws://" + ip + ":9090");
+        buildConnectingUI("Connecting to signal server " + ip + ":9090...");
     }
 
     private void startConnection(String ip) {
@@ -147,6 +140,10 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         backButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                if (hosting && embeddedServer != null) {
+                    embeddedServer.stop();
+                    embeddedServer = null;
+                }
                 if (connectionManager != null) {
                     connectionManager.disconnect();
                     connectionManager = null;
@@ -168,7 +165,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         stage.addActor(root);
 
         if (hosting) {
-            statusLabel = new Label("Hosting on port 9090", skin);
+            statusLabel = new Label("Hosting — waiting for clients", skin);
         } else {
             statusLabel = new Label("Connected to server", skin);
         }

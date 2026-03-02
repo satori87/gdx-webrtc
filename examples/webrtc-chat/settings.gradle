@@ -14,5 +14,6 @@ includeBuild('../../') {
         substitute module('com.github.satori87.gdx-webrtc:android') using project(':android')
         substitute module('com.github.satori87.gdx-webrtc:teavm') using project(':teavm')
         substitute module('com.github.satori87.gdx-webrtc:ios') using project(':ios')
+        substitute module('com.github.satori87.gdx-webrtc:server') using project(':server')
     }
 }

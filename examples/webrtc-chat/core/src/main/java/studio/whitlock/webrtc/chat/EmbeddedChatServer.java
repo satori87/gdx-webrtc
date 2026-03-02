@@ -13,7 +13,8 @@ import java.util.Map;
 
 /**
  * Embeddable chat server that runs inside the client application.
- * Uses WebRTCServerTransport for data and ChatSignalServer for signaling.
+ * Connects to the gdx-webrtc signaling server as a WebSocket client,
+ * uses WebRTCServerTransport for data channels.
  * The host participates in the chat as [SERVER].
  */
 public class EmbeddedChatServer {
@@ -24,30 +25,35 @@ public class EmbeddedChatServer {
         void onError(String error);
     }
 
-    private final ChatSignalServer signalServer;
+    private final ChatSignalClient signalClient;
     private final HostCallback callback;
     private WebRTCServerTransport serverTransport;
 
     private final Object lock = new Object();
-    private final Map<Integer, Integer> signalToConn = new HashMap<Integer, Integer>();
-    private final Map<Integer, Integer> connToSignal = new HashMap<Integer, Integer>();
+    /** Maps signaling peer ID → transport connection ID. */
+    private final Map<Integer, Integer> peerToConn = new HashMap<Integer, Integer>();
+    /** Maps transport connection ID → signaling peer ID. */
+    private final Map<Integer, Integer> connToPeer = new HashMap<Integer, Integer>();
+    /** Maps transport connection ID → user display name. */
     private final Map<Integer, String> connToName = new HashMap<Integer, String>();
+    private int localPeerId = -1;
     private int userCounter = 0;
     private boolean running = false;
 
-    public EmbeddedChatServer(ChatSignalServer signalServer, HostCallback callback) {
-        this.signalServer = signalServer;
+    public EmbeddedChatServer(ChatSignalClient signalClient, HostCallback callback) {
+        this.signalClient = signalClient;
         this.callback = callback;
     }
 
-    public void start(int port) {
+    public void start(String relayUrl) {
         WebRTCConfiguration config = new WebRTCConfiguration();
         serverTransport = WebRTCTransports.newServerTransport(config);
         serverTransport.setListener(new ServerTransportListener() {
             public void onClientConnected(int connId) {
                 final String name;
                 synchronized (lock) {
-                    name = connToName.containsKey(connId) ? connToName.get(connId) : "Unknown";
+                    String n = connToName.get(connId);
+                    name = n != null ? n : "Unknown";
                 }
                 final String announcement = "-- " + name + " joined --";
                 broadcastToClients(announcement);
@@ -63,8 +69,8 @@ public class EmbeddedChatServer {
                 synchronized (lock) {
                     String n = connToName.remove(connId);
                     name = n != null ? n : "Unknown";
-                    Integer signalId = connToSignal.remove(connId);
-                    if (signalId != null) signalToConn.remove(signalId);
+                    Integer peerId = connToPeer.remove(connId);
+                    if (peerId != null) peerToConn.remove(peerId);
                 }
                 final String announcement = "-- " + name + " left --";
                 broadcastToClients(announcement);
@@ -92,68 +98,121 @@ public class EmbeddedChatServer {
             }
         });
 
-        signalServer.start(port, new ChatSignalServer.Listener() {
-            public void onClientConnected(final int signalClientId) {
-                final String name;
-                synchronized (lock) {
-                    userCounter++;
-                    name = "User " + userCounter;
-                }
+        signalClient.connect(relayUrl, new ChatSignalClient.Listener() {
+            public void onOpen() {
+                // Wait for WELCOME message with our peer ID
+            }
 
-                int connId = serverTransport.createPeerForOffer(new WebRTCServerTransport.SignalCallback() {
-                    public void onOffer(int connId, String sdpOffer) {
-                        signalServer.send(signalClientId, "{\"type\":\"offer\",\"sdp\":\""
-                                + SignalMessage.escapeJson(sdpOffer) + "\"}");
-                    }
+            public void onMessage(String text) {
+                handleSignalingMessage(text);
+            }
 
-                    public void onIceCandidate(int connId, String iceJson) {
-                        signalServer.send(signalClientId, "{\"type\":\"ice\",\"candidate\":\""
-                                + SignalMessage.escapeJson(iceJson) + "\"}");
+            public void onClose(final String reason) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        callback.onError("Signaling closed: " + reason);
                     }
                 });
-
-                synchronized (lock) {
-                    signalToConn.put(signalClientId, connId);
-                    connToSignal.put(connId, signalClientId);
-                    connToName.put(connId, name);
-                }
             }
 
-            public void onClientMessage(int signalClientId, String text) {
-                final int connId;
-                synchronized (lock) {
-                    Integer c = signalToConn.get(signalClientId);
-                    if (c == null) return;
-                    connId = c;
-                }
-                String type = SignalMessage.extractString(text, "type");
-                if ("answer".equals(type)) {
-                    String sdp = SignalMessage.extractString(text, "sdp");
-                    serverTransport.setAnswer(connId, sdp);
-                } else if ("ice".equals(type)) {
-                    String candidate = SignalMessage.extractString(text, "candidate");
-                    serverTransport.addIceCandidate(connId, candidate);
-                }
+            public void onError(final String error) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        callback.onError(error);
+                    }
+                });
             }
+        });
+    }
 
-            public void onClientDisconnected(int signalClientId) {
-                final int connId;
-                synchronized (lock) {
-                    Integer c = signalToConn.remove(signalClientId);
-                    if (c == null) return;
-                    connId = c;
-                    connToSignal.remove(connId);
+    private void handleSignalingMessage(String json) {
+        SignalMessage msg = SignalMessage.fromJson(json);
+        if (msg == null) return;
+
+        switch (msg.type) {
+            case SignalMessage.TYPE_WELCOME:
+                localPeerId = Integer.parseInt(msg.data);
+                running = true;
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        callback.onStarted();
+                    }
+                });
+                break;
+
+            case SignalMessage.TYPE_PEER_JOINED:
+                handlePeerJoined(msg.source);
+                break;
+
+            case SignalMessage.TYPE_PEER_LEFT:
+                handlePeerLeft(msg.source);
+                break;
+
+            case SignalMessage.TYPE_CONNECT_REQUEST:
+                handlePeerJoined(msg.source);
+                break;
+
+            case SignalMessage.TYPE_ANSWER:
+                handleAnswer(msg.source, msg.data);
+                break;
+
+            case SignalMessage.TYPE_ICE:
+                handleIce(msg.source, msg.data);
+                break;
+        }
+    }
+
+    private void handlePeerJoined(final int peerId) {
+        synchronized (lock) {
+            userCounter++;
+            final String name = "User " + userCounter;
+
+            int connId = serverTransport.createPeerForOffer(new WebRTCServerTransport.SignalCallback() {
+                public void onOffer(int connId, String sdpOffer) {
+                    SignalMessage offer = new SignalMessage(
+                            SignalMessage.TYPE_OFFER, localPeerId, peerId, sdpOffer);
+                    signalClient.send(offer.toJson());
                 }
+
+                public void onIceCandidate(int connId, String iceJson) {
+                    SignalMessage ice = new SignalMessage(
+                            SignalMessage.TYPE_ICE, localPeerId, peerId, iceJson);
+                    signalClient.send(ice.toJson());
+                }
+            });
+
+            peerToConn.put(peerId, connId);
+            connToPeer.put(connId, peerId);
+            connToName.put(connId, name);
+        }
+    }
+
+    private void handlePeerLeft(int peerId) {
+        synchronized (lock) {
+            Integer connId = peerToConn.remove(peerId);
+            if (connId != null) {
+                connToPeer.remove(connId);
                 serverTransport.disconnect(connId);
             }
-        });
+        }
+    }
 
-        running = true;
-        Gdx.app.postRunnable(new Runnable() {
-            public void run() {
-                callback.onStarted();
+    private void handleAnswer(int peerId, String sdp) {
+        synchronized (lock) {
+            Integer connId = peerToConn.get(peerId);
+            if (connId != null) {
+                serverTransport.setAnswer(connId, sdp);
             }
-        });
+        }
+    }
+
+    private void handleIce(int peerId, String iceJson) {
+        synchronized (lock) {
+            Integer connId = peerToConn.get(peerId);
+            if (connId != null) {
+                serverTransport.addIceCandidate(connId, iceJson);
+            }
+        }
     }
 
     public void broadcastChat(String message) {
@@ -189,14 +248,14 @@ public class EmbeddedChatServer {
 
     public void stop() {
         running = false;
-        signalServer.stop();
+        signalClient.close();
         if (serverTransport != null) {
             serverTransport.stop();
             serverTransport = null;
         }
         synchronized (lock) {
-            signalToConn.clear();
-            connToSignal.clear();
+            peerToConn.clear();
+            connToPeer.clear();
             connToName.clear();
         }
     }

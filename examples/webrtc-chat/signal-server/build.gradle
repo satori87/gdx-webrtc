@@ -9,7 +9,7 @@ java.sourceCompatibility = 11
 java.targetCompatibility = 11
 
 dependencies {
-  implementation "com.github.satori87.gdx-webrtc:common:$gdxWebRTCVersion"
+  implementation "com.github.satori87.gdx-webrtc:server:$gdxWebRTCVersion"
 }
 
 jar {

@@ -19,59 +19,51 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.ChatCallback {
 
+    private final ChatSignalClient signalClient;
     private Stage stage;
     private Skin skin;
     private ConnectionManager connectionManager;
 
-    private enum AppState { ROLE_SELECT, CONNECTING, CHATTING }
-    private AppState state = AppState.ROLE_SELECT;
+    private enum AppState { CONNECT, CONNECTING, CHATTING }
+    private AppState state = AppState.CONNECT;
 
-    private int localId = -1;
-
-    // Chat UI references
     private Label statusLabel;
     private Label messageLog;
     private ScrollPane scrollPane;
     private TextField inputField;
     private StringBuilder messageBuffer = new StringBuilder();
 
+    public WebRtcChat(ChatSignalClient signalClient) {
+        this.signalClient = signalClient;
+    }
+
     @Override
     public void create() {
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
         skin = new Skin(Gdx.files.internal("uiskin.json"));
-        buildRoleSelectUI();
+        buildConnectUI();
     }
 
-    private void buildRoleSelectUI() {
+    private void buildConnectUI() {
         stage.clear();
-        state = AppState.ROLE_SELECT;
+        state = AppState.CONNECT;
 
         Table root = new Table();
         root.setFillParent(true);
         root.center();
         stage.addActor(root);
 
-        Label title = new Label("WebRTC Chat", skin);
+        Label title = new Label("WebRTC Chat (Client/Server)", skin);
         title.setFontScale(2f);
         root.add(title).padBottom(40).row();
 
-        TextButton hostButton = new TextButton("Host (localhost:9090)", skin);
-        hostButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                startConnection("localhost");
-            }
-        });
-        root.add(hostButton).width(300).height(50).padBottom(20).row();
-
-        Label connectLabel = new Label("-- or connect to a host --", skin);
-        connectLabel.setColor(Color.LIGHT_GRAY);
+        Label connectLabel = new Label("Enter server address:", skin);
         root.add(connectLabel).padBottom(10).row();
 
         Table connectRow = new Table();
-        TextField ipField = new TextField("localhost", skin);
-        ipField.setMessageText("Host IP address");
+        final TextField ipField = new TextField("localhost", skin);
+        ipField.setMessageText("Server IP address");
         TextButton connectButton = new TextButton("Connect", skin);
         connectButton.addListener(new ClickListener() {
             @Override
@@ -81,15 +73,14 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
                 startConnection(ip);
             }
         });
-        connectRow.add(ipField).width(200).height(40).padRight(10);
+        connectRow.add(ipField).width(250).height(40).padRight(10);
         connectRow.add(connectButton).width(100).height(40);
         root.add(connectRow).row();
     }
 
     private void startConnection(String ip) {
-        localId = -1;
-        connectionManager = new ConnectionManager("ws://" + ip + ":9090", this);
-        connectionManager.connect();
+        connectionManager = new ConnectionManager(signalClient, this);
+        connectionManager.connect("ws://" + ip + ":9090");
         buildConnectingUI("Connecting to " + ip + ":9090...");
     }
 
@@ -113,7 +104,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
                     connectionManager.disconnect();
                     connectionManager = null;
                 }
-                buildRoleSelectUI();
+                buildConnectUI();
             }
         });
         root.add(backButton).width(100).height(40);
@@ -129,7 +120,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         root.pad(10);
         stage.addActor(root);
 
-        statusLabel = new Label("Connected (You are peer " + localId + ")", skin);
+        statusLabel = new Label("Connected to server", skin);
         statusLabel.setColor(Color.GREEN);
         root.add(statusLabel).expandX().fillX().padBottom(5).row();
 
@@ -172,7 +163,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
                     connectionManager.disconnect();
                     connectionManager = null;
                 }
-                buildRoleSelectUI();
+                buildConnectUI();
             }
         });
 
@@ -227,42 +218,16 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
     // --- ConnectionManager.ChatCallback ---
 
     @Override
-    public void onSignalingConnected(int localId) {
-        this.localId = localId;
-        if (state == AppState.CONNECTING && statusLabel != null) {
-            statusLabel.setText("Connected to server (ID: " + localId + "). Waiting for peers...");
-        }
+    public void onConnected() {
+        buildChatUI();
     }
 
     @Override
-    public void onPeerJoined(int peerId) {
-        // Lower ID initiates connection to avoid duplicate handshakes
-        if (localId < peerId) {
-            connectionManager.connectToPeer(peerId);
-        }
-    }
-
-    @Override
-    public void onPeerLeft(int peerId) {
-    }
-
-    @Override
-    public void onPeerConnected(int peerId) {
+    public void onDisconnected() {
         if (state == AppState.CHATTING) {
-            appendMessage("-- Peer " + peerId + " joined --");
-        } else {
-            buildChatUI();
-        }
-    }
-
-    @Override
-    public void onPeerDisconnected(int peerId) {
-        if (state == AppState.CHATTING) {
-            appendMessage("-- Peer " + peerId + " left --");
-            if (!connectionManager.isConnected()) {
-                statusLabel.setText("All peers disconnected");
-                statusLabel.setColor(Color.RED);
-            }
+            appendMessage("-- Disconnected from server --");
+            statusLabel.setText("Disconnected");
+            statusLabel.setColor(Color.RED);
         }
     }
 

@@ -1,113 +1,145 @@
 package studio.whitlock.webrtc.chat;
 
 import com.badlogic.gdx.Gdx;
-import com.github.satori87.gdx.webrtc.WebRTCClient;
-import com.github.satori87.gdx.webrtc.WebRTCClientListener;
-import com.github.satori87.gdx.webrtc.WebRTCClients;
+import com.github.satori87.gdx.webrtc.SignalMessage;
 import com.github.satori87.gdx.webrtc.WebRTCConfiguration;
-import com.github.satori87.gdx.webrtc.WebRTCPeer;
+import com.github.satori87.gdx.webrtc.transport.TransportListener;
+import com.github.satori87.gdx.webrtc.transport.WebRTCClientTransport;
+import com.github.satori87.gdx.webrtc.transport.WebRTCTransports;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 
-public class ConnectionManager implements WebRTCClientListener {
+/**
+ * Manages a client connection to the chat server using WebRTCClientTransport
+ * with external signaling over a WebSocket.
+ */
+public class ConnectionManager {
 
     public interface ChatCallback {
-        void onSignalingConnected(int localId);
-        void onPeerJoined(int peerId);
-        void onPeerLeft(int peerId);
-        void onPeerConnected(int peerId);
-        void onPeerDisconnected(int peerId);
+        void onConnected();
+        void onDisconnected();
         void onMessageReceived(String message);
         void onError(String error);
     }
 
-    private final WebRTCClient client;
+    private final ChatSignalClient signalClient;
     private final ChatCallback callback;
-    private final Map<Integer, WebRTCPeer> peers = new HashMap<>();
+    private WebRTCClientTransport transport;
+    private boolean connected;
 
-    public ConnectionManager(String signalingUrl, ChatCallback callback) {
+    public ConnectionManager(ChatSignalClient signalClient, ChatCallback callback) {
+        this.signalClient = signalClient;
         this.callback = callback;
+    }
 
+    public void connect(String serverUrl) {
         WebRTCConfiguration config = new WebRTCConfiguration();
-        config.signalingServerUrl = signalingUrl;
+        transport = WebRTCTransports.newClientTransport(config);
+        transport.setListener(new TransportListener() {
+            public void onConnected() {
+                connected = true;
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        callback.onConnected();
+                    }
+                });
+            }
 
-        this.client = WebRTCClients.newClient(config, this);
+            public void onDisconnected() {
+                connected = false;
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        callback.onDisconnected();
+                    }
+                });
+            }
+
+            public void onMessage(byte[] data, boolean reliable) {
+                final String text = new String(data, StandardCharsets.UTF_8);
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        callback.onMessageReceived(text);
+                    }
+                });
+            }
+
+            public void onError(final String message) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        callback.onError(message);
+                    }
+                });
+            }
+        });
+
+        signalClient.connect(serverUrl, new ChatSignalClient.Listener() {
+            public void onOpen() {
+                // Server will send us an offer
+            }
+
+            public void onMessage(String text) {
+                handleSignalingMessage(text);
+            }
+
+            public void onClose(final String reason) {
+                if (!connected) {
+                    Gdx.app.postRunnable(new Runnable() {
+                        public void run() {
+                            callback.onError("Signaling closed: " + reason);
+                        }
+                    });
+                }
+            }
+
+            public void onError(final String error) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        callback.onError(error);
+                    }
+                });
+            }
+        });
     }
 
-    public void connect() {
-        client.connect();
-    }
+    private void handleSignalingMessage(String json) {
+        String type = SignalMessage.extractString(json, "type");
+        if ("offer".equals(type)) {
+            String sdp = SignalMessage.extractString(json, "sdp");
+            transport.connectWithOffer(sdp, new WebRTCClientTransport.SignalCallback() {
+                public void onAnswer(String sdpAnswer) {
+                    signalClient.send("{\"type\":\"answer\",\"sdp\":\""
+                            + SignalMessage.escapeJson(sdpAnswer) + "\"}");
+                }
 
-    public void disconnect() {
-        for (WebRTCPeer peer : peers.values()) {
-            peer.close();
+                public void onIceCandidate(String iceJson) {
+                    signalClient.send("{\"type\":\"ice\",\"candidate\":\""
+                            + SignalMessage.escapeJson(iceJson) + "\"}");
+                }
+            });
+        } else if ("ice".equals(type)) {
+            String candidate = SignalMessage.extractString(json, "candidate");
+            transport.addIceCandidate(candidate);
         }
-        peers.clear();
-        client.disconnect();
-    }
-
-    public void connectToPeer(int peerId) {
-        client.connectToPeer(peerId);
-    }
-
-    public int getLocalId() {
-        return client.getLocalId();
     }
 
     public void sendMessage(String text) {
-        byte[] data = text.getBytes(StandardCharsets.UTF_8);
-        for (WebRTCPeer peer : peers.values()) {
-            if (peer.isConnected()) {
-                peer.sendReliable(data);
-            }
+        if (transport != null && connected) {
+            transport.sendReliable(text.getBytes(StandardCharsets.UTF_8));
         }
     }
 
     public boolean isConnected() {
-        return !peers.isEmpty();
+        return connected;
     }
 
-    @Override
-    public void onSignalingConnected(int localId) {
-        Gdx.app.postRunnable(() -> callback.onSignalingConnected(localId));
-    }
-
-    @Override
-    public void onPeerJoined(int peerId) {
-        Gdx.app.postRunnable(() -> callback.onPeerJoined(peerId));
-    }
-
-    @Override
-    public void onPeerLeft(int peerId) {
-        Gdx.app.postRunnable(() -> callback.onPeerLeft(peerId));
-    }
-
-    @Override
-    public void onConnected(WebRTCPeer peer) {
-        Gdx.app.postRunnable(() -> {
-            peers.put(peer.getId(), peer);
-            callback.onPeerConnected(peer.getId());
-        });
-    }
-
-    @Override
-    public void onDisconnected(WebRTCPeer peer) {
-        Gdx.app.postRunnable(() -> {
-            peers.remove(peer.getId());
-            callback.onPeerDisconnected(peer.getId());
-        });
-    }
-
-    @Override
-    public void onMessage(WebRTCPeer peer, byte[] data, boolean reliable) {
-        String text = new String(data, StandardCharsets.UTF_8);
-        Gdx.app.postRunnable(() -> callback.onMessageReceived("Peer " + peer.getId() + ": " + text));
-    }
-
-    @Override
-    public void onError(String error) {
-        Gdx.app.postRunnable(() -> callback.onError(error));
+    public void disconnect() {
+        connected = false;
+        if (signalClient != null) {
+            signalClient.close();
+        }
+        if (transport != null) {
+            transport.disconnect();
+            transport = null;
+        }
     }
 }

@@ -19,6 +19,6 @@ public class TeaVMLauncher {
         config.width = 0;
         config.height = 0;
         WebRTCClients.FACTORY = new TeaVMWebRTCFactory();
-        new TeaApplication(new WebRtcChat(), config);
+        new TeaApplication(new WebRtcChat(new BrowserSignalClient()), config);
     }
 }

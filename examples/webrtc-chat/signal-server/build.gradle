@@ -2,18 +2,18 @@ plugins {
   id "application"
 }
 
-application.mainClass = 'studio.whitlock.webrtc.chat.server.SignalServerLauncher'
+application.mainClass = 'studio.whitlock.webrtc.chat.server.ChatServer'
 eclipse.project.name = appName + '-signal-server'
 
 java.sourceCompatibility = 11
 java.targetCompatibility = 11
 
 dependencies {
-  implementation "com.github.satori87.gdx-webrtc:server:$gdxWebRTCVersion"
+  implementation "com.github.satori87.gdx-webrtc:common:$gdxWebRTCVersion"
 }
 
 jar {
-  archiveFileName.set("${appName}-signal-server-${projectVersion}.jar")
+  archiveFileName.set("${appName}-server-${projectVersion}.jar")
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
   dependsOn configurations.runtimeClasspath
   from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }

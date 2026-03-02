@@ -5,7 +5,7 @@ java {
 
 dependencies {
     api project(':core')
-    implementation "org.java-websocket:Java-WebSocket:$javaWebSocketVersion"
+    api "org.java-websocket:Java-WebSocket:$javaWebSocketVersion"
     implementation "dev.onvoid.webrtc:webrtc-java:$webrtcJavaVersion"
 
     // Platform-specific native libraries

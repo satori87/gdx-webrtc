@@ -114,26 +114,11 @@ public class ConnectionManager {
                 break;
 
             case SignalMessage.TYPE_PEER_JOINED:
-                // The first peer we see is the host — send a connect request
-                if (hostPeerId < 0) {
-                    hostPeerId = msg.source;
-                    sendConnectRequest(hostPeerId);
-                }
+                // Note the host peer — the host will proactively send us an offer
                 break;
 
             case SignalMessage.TYPE_PEER_LIST:
-                // Pick the first peer in the list as the host
-                if (hostPeerId < 0 && msg.data != null && !msg.data.isEmpty()) {
-                    String[] ids = msg.data.split(",");
-                    for (String id : ids) {
-                        int peerId = Integer.parseInt(id.trim());
-                        if (peerId != localPeerId) {
-                            hostPeerId = peerId;
-                            sendConnectRequest(hostPeerId);
-                            break;
-                        }
-                    }
-                }
+                // Host will send offers proactively, no action needed
                 break;
 
             case SignalMessage.TYPE_OFFER:
@@ -165,12 +150,6 @@ public class ConnectionManager {
                 });
                 break;
         }
-    }
-
-    private void sendConnectRequest(int targetPeerId) {
-        SignalMessage req = new SignalMessage(
-                SignalMessage.TYPE_CONNECT_REQUEST, localPeerId, targetPeerId, "");
-        signalClient.send(req.toJson());
     }
 
     private void handleOffer(final int fromPeerId, String sdp) {

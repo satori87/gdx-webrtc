@@ -149,7 +149,12 @@ public class EmbeddedChatServer {
                 break;
 
             case SignalMessage.TYPE_CONNECT_REQUEST:
-                handlePeerJoined(msg.source);
+                // Only create offer if we haven't already (PEER_JOINED may have fired first)
+                synchronized (lock) {
+                    if (!peerToConn.containsKey(msg.source)) {
+                        handlePeerJoined(msg.source);
+                    }
+                }
                 break;
 
             case SignalMessage.TYPE_ANSWER:

@@ -20,7 +20,7 @@ Requires JDK 17+ (Gradle 9.x). On this machine: `export JAVA_HOME="/c/Users/sato
 No linter is configured.
 
 ```bash
-./gradlew :core:test             # Run core unit tests (119 tests)
+./gradlew :core:test             # Run core unit tests (193 tests)
 ./gradlew :server:test           # Run server unit tests (116 tests)
 ```
 
@@ -30,7 +30,7 @@ Six modules, all under package `com.github.satori87.gdx.webrtc`:
 
 | Module | Purpose | Java Target | Key Dependencies |
 |--------|---------|-------------|-----------------|
-| **core** | Platform-agnostic API, shared logic (`BaseWebRTCClient`), strategy interfaces | Java 8 | JUnit 5 (test only) |
+| **core** | Platform-agnostic API, shared logic (`BaseWebRTCClient`), strategy interfaces, `transport` subpackage for client/server transport | Java 8 | JUnit 5 (test only) |
 | **common** | Desktop implementation | Java 11 | `dev.onvoid.webrtc:webrtc-java`, `Java-WebSocket` |
 | **teavm** | Browser implementation | Java 11 | `teavm-jso`, `teavm-jso-apis` (compileOnly) |
 | **android** | Android implementation | Java 8 | `io.github.webrtc-sdk:android`, `Java-WebSocket` |
@@ -50,6 +50,7 @@ All platform modules depend on `core`. The `android` module uses the `com.androi
 - **Signaling protocol**: JSON messages (`SignalMessage`) over WebSocket with hand-rolled parser (no JSON library). Types: WELCOME, CONNECT_REQUEST, OFFER, ANSWER, ICE, PEER_LIST, ERROR, PEER_JOINED, PEER_LEFT. The server is a dumb relay that stamps source IDs and forwards to targets. The CONNECT_REQUEST receiver becomes the SDP offerer.
 - **Two data channels per peer**: `sendReliable()` (ordered, unlimited retransmits) and `sendUnreliable()` (unordered, maxRetransmits=0). Unreliable packets are silently dropped if send buffer exceeds configurable limit (default 64KB); falls back to reliable if channel unavailable.
 - **ICE restart stability**: On ICE DISCONNECTED, waits configurable delay (default 3.5s) then restarts ICE. On ICE FAILED, retries with exponential backoff (default base 2s: 2s, 4s, 8s, max 3 attempts). `onDisconnected()` only fires after all retries are exhausted. All ICE parameters are configurable via `WebRTCConfiguration`.
+- **Transport pattern**: The `transport` subpackage provides a client/server transport abstraction for games with external signaling (e.g., a lobby). `WebRTCServerTransport` manages multiple peers (offerer side) with `createPeerForOffer()` / `setAnswer()` / `addIceCandidate()`. `WebRTCClientTransport` manages a single peer (answerer side) with `connectWithOffer()` / `addIceCandidate()`. Both reuse `PeerConnectionProvider` and `Scheduler` but NOT `SignalingProvider` — signaling is handled externally via `SignalCallback` interfaces. `BaseWebRTCServerTransport` and `BaseWebRTCClientTransport` contain the implementations with per-peer ICE state machines replicated from `BaseWebRTCClient`. `WebRTCTransports` is the static entry point (delegates to `WebRTCClients.FACTORY`). `WebRTCFactory` has two additional methods: `createClientTransport()` and `createServerTransport()`.
 - **TeaVM native interop**: Uses `@JSBody` for inline JavaScript and `@JSFunctor` for callback interfaces. All browser WebRTC/WebSocket calls go through static native methods.
 
 ## Platform Strategy Implementations
@@ -65,7 +66,7 @@ Each platform module provides 3 strategy classes:
 
 ## Unit Tests
 
-**Core module** — 119 tests in `core/src/test/`:
+**Core module** — 193 tests in `core/src/test/`:
 - `BaseWebRTCClientTest` — connect/disconnect, connectToPeer, setListener, getLocalId
 - `SignalingDispatchTest` — all 9 message types, error handling, null safety
 - `IceStateMachineTest` — CONNECTED/DISCONNECTED/FAILED/CLOSED states, exponential backoff, timer cancellation
@@ -74,6 +75,10 @@ Each platform module provides 3 strategy classes:
 - `ConnectionFlowTest` — offer/answer flows, ICE candidate exchange, error cases
 - `SignalMessageTest` — JSON serialization roundtrip, escaping, parsing
 - `WebRTCConfigurationTest` — defaults, getters/setters
+
+- `BaseWebRTCClientTransportTest` — connection flow, ICE candidates, disconnect, send reliable/unreliable, data channel lifecycle, ICE state machine, error handling
+- `BaseWebRTCServerTransportTest` — offer creation, connId assignment, answer/ICE handling, data channel lifecycle, send/broadcast, buffer threshold, disconnect, stop, TURN config, per-peer ICE state machine, multiple peers independence
+- `TransportTestHelpers` — mock listeners (`MockTransportListener`, `MockServerTransportListener`) and signal callbacks for transport tests
 
 All core tests use mock strategy implementations (in `TestHelpers`) — no real WebRTC runtime needed.
 

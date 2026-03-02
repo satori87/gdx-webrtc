@@ -274,6 +274,126 @@ This does not prevent you from using a client/server model. One peer simply acts
 
 The signaling server brokers the initial WebRTC handshake and then gets out of the way. All game data flows directly between the host and each peer.
 
+## Client/Server Transport (External Signaling)
+
+For games with an authoritative server and their own signaling mechanism (e.g., a lobby server), gdx-webrtc provides a lower-level transport API. Instead of using the built-in signaling server, your application relays SDP offers/answers and ICE candidates through its own infrastructure.
+
+The transport API consists of two interfaces:
+- **`WebRTCServerTransport`** — manages multiple peer connections (offerer side), assigns connection IDs, broadcasts to all clients
+- **`WebRTCClientTransport`** — manages a single peer connection (answerer side), receives an offer and produces an answer
+
+### Server-Side Usage
+
+```java
+import com.github.satori87.gdx.webrtc.*;
+import com.github.satori87.gdx.webrtc.transport.*;
+
+// Create a server transport
+WebRTCConfiguration config = new WebRTCConfiguration();
+WebRTCServerTransport server = WebRTCTransports.newServerTransport(config);
+
+// Optional: configure TURN for NAT traversal
+server.setTurnServer("turn:myserver.com:3478", "user", "pass");
+
+// Listen for client events
+server.setListener(new ServerTransportListener() {
+    public void onClientConnected(int connId) {
+        System.out.println("Client " + connId + " connected");
+    }
+    public void onClientDisconnected(int connId) {
+        System.out.println("Client " + connId + " disconnected");
+    }
+    public void onClientMessage(int connId, byte[] data, boolean reliable) {
+        // Handle message from client
+    }
+});
+
+// When a client wants to connect (via your lobby):
+int connId = server.createPeerForOffer(new WebRTCServerTransport.SignalCallback() {
+    public void onOffer(int connId, String sdpOffer) {
+        // Send this offer to the client through your lobby
+        lobby.sendToClient(clientId, "offer", sdpOffer);
+    }
+    public void onIceCandidate(int connId, String iceJson) {
+        // Send ICE candidate to the client through your lobby
+        lobby.sendToClient(clientId, "ice", iceJson);
+    }
+});
+
+// When the client responds with an answer (via your lobby):
+server.setAnswer(connId, sdpAnswer);
+
+// When the client sends an ICE candidate (via your lobby):
+server.addIceCandidate(connId, iceJson);
+
+// Send data to clients
+server.sendReliable(connId, data);       // To one client
+server.broadcastReliable(data);           // To all clients
+server.broadcastUnreliable(positionData); // Unreliable broadcast
+```
+
+### Client-Side Usage
+
+```java
+import com.github.satori87.gdx.webrtc.*;
+import com.github.satori87.gdx.webrtc.transport.*;
+
+// Create a client transport
+WebRTCConfiguration config = new WebRTCConfiguration();
+WebRTCClientTransport client = WebRTCTransports.newClientTransport(config);
+
+// Listen for server events
+client.setListener(new TransportListener() {
+    public void onConnected() {
+        System.out.println("Connected to server");
+    }
+    public void onDisconnected() {
+        System.out.println("Disconnected from server");
+    }
+    public void onMessage(byte[] data, boolean reliable) {
+        // Handle message from server
+    }
+    public void onError(String message) {
+        System.err.println("Error: " + message);
+    }
+});
+
+// When you receive an offer from the server (via your lobby):
+client.connectWithOffer(sdpOffer, new WebRTCClientTransport.SignalCallback() {
+    public void onAnswer(String sdpAnswer) {
+        // Send this answer back to the server through your lobby
+        lobby.sendToServer("answer", sdpAnswer);
+    }
+    public void onIceCandidate(String iceJson) {
+        // Send ICE candidate to the server through your lobby
+        lobby.sendToServer("ice", iceJson);
+    }
+});
+
+// When the server sends an ICE candidate (via your lobby):
+client.addIceCandidate(iceJson);
+
+// Send data to server
+client.sendReliable(data);
+client.sendUnreliable(inputData);
+```
+
+### How External Signaling Works
+
+```
+     Your Lobby Server
+    /        |        \
+  relay    relay     relay      ← your lobby relays SDP + ICE
+   /         |         \
+[Game Server] ←——→ [Client A]
+[Game Server] ←——→ [Client B]  ← direct WebRTC data channels
+[Game Server] ←——→ [Client C]
+```
+
+The game server creates an SDP offer for each client via `createPeerForOffer()`. Your lobby relays the offer to the client, the client produces an answer via `connectWithOffer()`, and the lobby relays it back. ICE candidates are exchanged the same way. Once the WebRTC connection is established, all game data flows directly between server and clients — the lobby is no longer involved.
+
+All ICE restart, exponential backoff, buffer management, and dual-channel semantics work identically to the peer-to-peer API.
+
 ## STUN / TURN
 
 - **STUN** helps peers discover their public IP for direct connections. Defaults to Google's public STUN server (`stun:stun.l.google.com:19302`).

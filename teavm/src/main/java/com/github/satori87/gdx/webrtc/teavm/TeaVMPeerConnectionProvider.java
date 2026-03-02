@@ -248,9 +248,26 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      */
     public void createOffer(Object peerConnection, final SdpResultCallback callback) {
         final JSObject pc = (JSObject) peerConnection;
-        StringCallback successCb = new StringCallback() {
+        // Step 1: Create the offer and get the SDP (does NOT set local description).
+        // Step 2: Set local description as a separate JS invocation, matching
+        // SpacedOut's BrowserWebRTCServerTransport pattern which splits these into
+        // two @JSBody calls with a Java callback in between.
+        StringCallback offerCb = new StringCallback() {
             public void onResult(String sdp) {
-                callback.onSuccess(sdp);
+                // Step 2: Set local description in a separate JS call
+                VoidCallback setDescCb = new VoidCallback() {
+                    public void onComplete() {
+                        callback.onSuccess(sdp);
+                    }
+                };
+                StringCallback setDescErr = new StringCallback() {
+                    public void onResult(String error) {
+                        callback.onFailure(error);
+                    }
+                };
+                retainCallback(pc, setDescCb);
+                retainCallback(pc, setDescErr);
+                setLocalDescriptionNative(pc, "offer", sdp, setDescCb, setDescErr);
             }
         };
         StringCallback errorCb = new StringCallback() {
@@ -258,9 +275,9 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
                 callback.onFailure(error);
             }
         };
-        retainCallback(pc, successCb);
+        retainCallback(pc, offerCb);
         retainCallback(pc, errorCb);
-        createOfferNative(pc, successCb, errorCb);
+        createOfferOnly(pc, offerCb, errorCb);
     }
 
     /**
@@ -679,14 +696,18 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      */
     @JSBody(params = {"pc", "successCb", "errorCb"}, script =
             "pc.createOffer()"
-            + ".then(function(o){"
-            + "  return pc.setLocalDescription(new RTCSessionDescription({type:'offer',sdp:o.sdp}))"
-            + "    .then(function(){return o;});"
-            + "})"
             + ".then(function(o){successCb(o.sdp);})"
             + ".catch(function(e){errorCb('' + e);});")
-    private static native void createOfferNative(JSObject pc, StringCallback successCb,
-                                                  StringCallback errorCb);
+    private static native void createOfferOnly(JSObject pc, StringCallback successCb,
+                                                StringCallback errorCb);
+
+    @JSBody(params = {"pc", "type", "sdp", "successCb", "errorCb"}, script =
+            "pc.setLocalDescription(new RTCSessionDescription({type:type,sdp:sdp}))"
+            + ".then(function(){successCb();})"
+            + ".catch(function(e){errorCb('' + e);});")
+    private static native void setLocalDescriptionNative(JSObject pc, String type, String sdp,
+                                                          VoidCallback successCb,
+                                                          StringCallback errorCb);
 
     /**
      * Performs the full SDP answer handshake: sets the remote offer, creates an answer,
@@ -703,12 +724,9 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param errorCb   callback invoked with the error string on failure
      */
     @JSBody(params = {"pc", "sdp", "successCb", "errorCb"}, script =
-            "pc.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp:sdp}))"
+            "pc.setRemoteDescription({type:'offer',sdp:sdp})"
             + ".then(function(){return pc.createAnswer();})"
-            + ".then(function(a){"
-            + "  return pc.setLocalDescription(new RTCSessionDescription({type:'answer',sdp:a.sdp}))"
-            + "    .then(function(){return a;});"
-            + "})"
+            + ".then(function(a){return pc.setLocalDescription(a).then(function(){return a;});})"
             + ".then(function(a){successCb(a.sdp);})"
             + ".catch(function(e){errorCb('' + e);});")
     private static native void doSignalingHandshake(JSObject pc, String sdp,
@@ -746,7 +764,7 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param iceJson the JSON-encoded ICE candidate string
      */
     @JSBody(params = {"pc", "iceJson"}, script =
-            "try{pc.addIceCandidate(new RTCIceCandidate(JSON.parse(iceJson))).catch(function(e){});}catch(e){}")
+            "try{pc.addIceCandidate(JSON.parse(iceJson)).catch(function(e){});}catch(e){}")
     private static native void addIceCandidateNative(JSObject pc, String iceJson);
 
     /**

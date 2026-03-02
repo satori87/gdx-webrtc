@@ -586,6 +586,7 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
             + "if(turnUrl && turnUrl.length > 0) servers.push({urls: turnUrl, username: turnUser || '', credential: turnPass || ''});"
             + "var cfg = {iceServers: servers};"
             + "if(forceRelay) { cfg.iceTransportPolicy = 'relay'; }"
+            + "console.log('[WebRTC-JS] *** LIB VERSION 2026-03-02-B ***');"
             + "console.log('[WebRTC-JS] Creating PC with config:', JSON.stringify(cfg));"
             + "var testPc = new RTCPeerConnection({iceServers: [{urls: 'stun:stun.l.google.com:19302'}]});"
             + "testPc.createDataChannel('baretest');"

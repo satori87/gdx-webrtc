@@ -15,6 +15,11 @@ import org.teavm.jso.dom.events.EventListener;
 import org.teavm.jso.typedarrays.ArrayBuffer;
 import org.teavm.jso.typedarrays.Int8Array;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Browser implementation of {@link PeerConnectionProvider} using the native
  * {@code RTCPeerConnection} API via TeaVM's JSO (JavaScript Object) interop layer.
@@ -48,6 +53,22 @@ import org.teavm.jso.typedarrays.Int8Array;
  * @see TeaVMWebRTCFactory
  */
 public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
+
+    /**
+     * Prevents TeaVM GC from collecting JSFunctor callback objects that are only
+     * referenced from JavaScript. Maps each peer connection to the list of callbacks
+     * installed on it and its data channels.
+     */
+    private final Map<JSObject, List<Object>> callbackRetention = new HashMap<JSObject, List<Object>>();
+
+    private void retainCallback(JSObject pc, Object callback) {
+        List<Object> list = callbackRetention.get(pc);
+        if (list == null) {
+            list = new ArrayList<Object>();
+            callbackRetention.put(pc, list);
+        }
+        list.add(callback);
+    }
 
     // --- JSFunctor callback interfaces ---
 
@@ -184,26 +205,32 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
 
         JSObject pc = createPeerConnectionNative(stunUrl, turnUrl, turnUser, turnPass, config.forceRelay);
 
-        setOnIceCandidate(pc, new IceCallback() {
+        IceCallback iceCb = new IceCallback() {
             public void onIce(String iceJson) {
                 if (iceJson != null) {
                     handler.onIceCandidate(iceJson);
                 }
             }
-        });
-
-        setOnConnectionStateChange(pc, new ConnectionStateCallback() {
+        };
+        ConnectionStateCallback stateCb = new ConnectionStateCallback() {
             public void onState(String state) {
                 handler.onConnectionStateChanged(mapConnectionState(state));
             }
-        });
-
-        setOnDataChannel(pc, new DataChannelCallback() {
+        };
+        DataChannelCallback dcCb = new DataChannelCallback() {
             public void onChannel(JSObject channel) {
                 String label = getChannelLabel(channel);
                 handler.onDataChannel(channel, label);
             }
-        });
+        };
+
+        retainCallback(pc, iceCb);
+        retainCallback(pc, stateCb);
+        retainCallback(pc, dcCb);
+
+        setOnIceCandidate(pc, iceCb);
+        setOnConnectionStateChange(pc, stateCb);
+        setOnDataChannel(pc, dcCb);
 
         return pc;
     }
@@ -220,16 +247,20 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param callback       callback to receive the offer SDP string or error
      */
     public void createOffer(Object peerConnection, final SdpResultCallback callback) {
-        JSObject pc = (JSObject) peerConnection;
-        createOfferNative(pc, new StringCallback() {
+        final JSObject pc = (JSObject) peerConnection;
+        StringCallback successCb = new StringCallback() {
             public void onResult(String sdp) {
                 callback.onSuccess(sdp);
             }
-        }, new StringCallback() {
+        };
+        StringCallback errorCb = new StringCallback() {
             public void onResult(String error) {
                 callback.onFailure(error);
             }
-        });
+        };
+        retainCallback(pc, successCb);
+        retainCallback(pc, errorCb);
+        createOfferNative(pc, successCb, errorCb);
     }
 
     /**
@@ -245,16 +276,20 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param callback       callback to receive the answer SDP string or error
      */
     public void handleOffer(Object peerConnection, String remoteSdp, final SdpResultCallback callback) {
-        JSObject pc = (JSObject) peerConnection;
-        doSignalingHandshake(pc, remoteSdp, new StringCallback() {
+        final JSObject pc = (JSObject) peerConnection;
+        StringCallback successCb = new StringCallback() {
             public void onResult(String answerSdp) {
                 callback.onSuccess(answerSdp);
             }
-        }, new StringCallback() {
+        };
+        StringCallback errorCb = new StringCallback() {
             public void onResult(String error) {
                 callback.onFailure(error);
             }
-        });
+        };
+        retainCallback(pc, successCb);
+        retainCallback(pc, errorCb);
+        doSignalingHandshake(pc, remoteSdp, successCb, errorCb);
     }
 
     /**
@@ -268,16 +303,20 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param sdp            the remote SDP answer string
      */
     public void setRemoteAnswer(Object peerConnection, String sdp) {
-        JSObject pc = (JSObject) peerConnection;
-        setRemoteAnswerNative(pc, sdp, new VoidCallback() {
+        final JSObject pc = (JSObject) peerConnection;
+        VoidCallback successCb = new VoidCallback() {
             public void onComplete() {
                 // success — nothing to do
             }
-        }, new StringCallback() {
+        };
+        StringCallback errorCb = new StringCallback() {
             public void onResult(String error) {
                 System.out.println("[WebRTC-Browser] Set remote answer failed: " + error);
             }
-        });
+        };
+        retainCallback(pc, successCb);
+        retainCallback(pc, errorCb);
+        setRemoteAnswerNative(pc, sdp, successCb, errorCb);
     }
 
     /**
@@ -317,7 +356,9 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param peerConnection the native {@code RTCPeerConnection} JSObject handle
      */
     public void closePeerConnection(Object peerConnection) {
-        closePeerConnectionNative((JSObject) peerConnection);
+        JSObject pc = (JSObject) peerConnection;
+        callbackRetention.remove(pc);
+        closePeerConnectionNative(pc);
     }
 
     /**
@@ -345,8 +386,8 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
         JSObject pc = (JSObject) peerConnection;
         JSObject reliable = createDataChannel(pc, "reliable", true, 0);
         JSObject unreliable = createDataChannel(pc, "unreliable", false, unreliableMaxRetransmits);
-        setupChannelEvents(reliable, true, handler);
-        setupChannelEvents(unreliable, false, handler);
+        setupChannelEvents(pc, reliable, true, handler);
+        setupChannelEvents(pc, unreliable, false, handler);
         return new ChannelPair(reliable, unreliable);
     }
 
@@ -363,7 +404,8 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param handler  callbacks for channel open, close, and message events
      */
     public void setupReceivedChannel(Object channel, boolean reliable, DataChannelEventHandler handler) {
-        setupChannelEvents((JSObject) channel, reliable, handler);
+        JSObject ch = (JSObject) channel;
+        setupChannelEvents(ch, ch, reliable, handler);
     }
 
     /**
@@ -457,11 +499,11 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param reliable {@code true} for the reliable (ordered) channel, {@code false} for unreliable
      * @param handler  callbacks for channel lifecycle and message events
      */
-    private void setupChannelEvents(JSObject channel, final boolean reliable,
+    private void setupChannelEvents(JSObject retentionKey, JSObject channel, final boolean reliable,
                                      final DataChannelEventHandler handler) {
         setChannelBinaryType(channel, "arraybuffer");
 
-        addChannelListener(channel, "open", new EventListener<Event>() {
+        EventListener<Event> openListener = new EventListener<Event>() {
             public void handleEvent(Event evt) {
                 if (reliable) {
                     handler.onReliableOpen();
@@ -469,9 +511,9 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
                     handler.onUnreliableOpen();
                 }
             }
-        });
+        };
 
-        addChannelListener(channel, "close", new EventListener<Event>() {
+        EventListener<Event> closeListener = new EventListener<Event>() {
             public void handleEvent(Event evt) {
                 if (reliable) {
                     handler.onReliableClose();
@@ -479,9 +521,9 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
                     handler.onUnreliableClose();
                 }
             }
-        });
+        };
 
-        addChannelListener(channel, "message", new EventListener<Event>() {
+        EventListener<Event> messageListener = new EventListener<Event>() {
             public void handleEvent(Event evt) {
                 ArrayBuffer buffer = getChannelMessageData(evt);
                 if (buffer != null) {
@@ -493,7 +535,15 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
                     handler.onMessage(data, reliable);
                 }
             }
-        });
+        };
+
+        retainCallback(retentionKey, openListener);
+        retainCallback(retentionKey, closeListener);
+        retainCallback(retentionKey, messageListener);
+
+        addChannelListener(channel, "open", openListener);
+        addChannelListener(channel, "close", closeListener);
+        addChannelListener(channel, "message", messageListener);
     }
 
     /**

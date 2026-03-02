@@ -106,15 +106,22 @@ public class ConnectionManager {
 
     private void handleSignalingMessage(String json) {
         SignalMessage msg = SignalMessage.fromJson(json);
-        if (msg == null) return;
+        if (msg == null) {
+            System.out.println("[ChatClient] Failed to parse signaling message: " + json);
+            return;
+        }
+
+        System.out.println("[ChatClient] Received signal type=" + msg.type + " source=" + msg.source + " target=" + msg.target);
 
         switch (msg.type) {
             case SignalMessage.TYPE_WELCOME:
                 localPeerId = Integer.parseInt(msg.data);
+                System.out.println("[ChatClient] Our peer ID: " + localPeerId);
                 break;
 
             case SignalMessage.TYPE_PEER_JOINED:
                 // Note the host peer — the host will proactively send us an offer
+                System.out.println("[ChatClient] Peer joined: " + msg.source);
                 break;
 
             case SignalMessage.TYPE_PEER_LIST:
@@ -123,10 +130,12 @@ public class ConnectionManager {
 
             case SignalMessage.TYPE_OFFER:
                 hostPeerId = msg.source;
+                System.out.println("[ChatClient] Received OFFER from host " + hostPeerId);
                 handleOffer(msg.source, msg.data);
                 break;
 
             case SignalMessage.TYPE_ICE:
+                System.out.println("[ChatClient] Received ICE from host");
                 handleIce(msg.data);
                 break;
 
@@ -155,12 +164,14 @@ public class ConnectionManager {
     private void handleOffer(final int fromPeerId, String sdp) {
         transport.connectWithOffer(sdp, new WebRTCClientTransport.SignalCallback() {
             public void onAnswer(String sdpAnswer) {
+                System.out.println("[ChatClient] Sending ANSWER to host " + fromPeerId);
                 SignalMessage answer = new SignalMessage(
                         SignalMessage.TYPE_ANSWER, localPeerId, fromPeerId, sdpAnswer);
                 signalClient.send(answer.toJson());
             }
 
             public void onIceCandidate(String iceJson) {
+                System.out.println("[ChatClient] Sending ICE to host " + fromPeerId);
                 SignalMessage ice = new SignalMessage(
                         SignalMessage.TYPE_ICE, localPeerId, fromPeerId, iceJson);
                 signalClient.send(ice.toJson());

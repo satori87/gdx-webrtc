@@ -127,11 +127,17 @@ public class EmbeddedChatServer {
 
     private void handleSignalingMessage(String json) {
         SignalMessage msg = SignalMessage.fromJson(json);
-        if (msg == null) return;
+        if (msg == null) {
+            System.out.println("[ChatServer] Failed to parse signaling message: " + json);
+            return;
+        }
+
+        System.out.println("[ChatServer] Received signal type=" + msg.type + " source=" + msg.source + " target=" + msg.target);
 
         switch (msg.type) {
             case SignalMessage.TYPE_WELCOME:
                 localPeerId = Integer.parseInt(msg.data);
+                System.out.println("[ChatServer] Our peer ID: " + localPeerId);
                 running = true;
                 Gdx.app.postRunnable(new Runnable() {
                     public void run() {
@@ -174,12 +180,14 @@ public class EmbeddedChatServer {
 
             int connId = serverTransport.createPeerForOffer(new WebRTCServerTransport.SignalCallback() {
                 public void onOffer(int connId, String sdpOffer) {
+                    System.out.println("[ChatServer] Sending OFFER to peer " + peerId + " (connId=" + connId + ")");
                     SignalMessage offer = new SignalMessage(
                             SignalMessage.TYPE_OFFER, localPeerId, peerId, sdpOffer);
                     signalClient.send(offer.toJson());
                 }
 
                 public void onIceCandidate(int connId, String iceJson) {
+                    System.out.println("[ChatServer] Sending ICE to peer " + peerId + " (connId=" + connId + ")");
                     SignalMessage ice = new SignalMessage(
                             SignalMessage.TYPE_ICE, localPeerId, peerId, iceJson);
                     signalClient.send(ice.toJson());
@@ -205,6 +213,7 @@ public class EmbeddedChatServer {
     private void handleAnswer(int peerId, String sdp) {
         synchronized (lock) {
             Integer connId = peerToConn.get(peerId);
+            System.out.println("[ChatServer] Received ANSWER from peer " + peerId + " connId=" + connId);
             if (connId != null) {
                 serverTransport.setAnswer(connId, sdp);
             }
@@ -214,6 +223,7 @@ public class EmbeddedChatServer {
     private void handleIce(int peerId, String iceJson) {
         synchronized (lock) {
             Integer connId = peerToConn.get(peerId);
+            System.out.println("[ChatServer] Received ICE from peer " + peerId + " connId=" + connId);
             if (connId != null) {
                 serverTransport.addIceCandidate(connId, iceJson);
             }

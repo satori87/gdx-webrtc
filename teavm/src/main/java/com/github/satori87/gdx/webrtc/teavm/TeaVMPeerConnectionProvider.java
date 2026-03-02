@@ -613,7 +613,11 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param cb callback invoked with each ICE candidate as a JSON string
      */
     @JSBody(params = {"pc", "cb"}, script =
-            "pc.onicecandidate = function(e) { if(e.candidate) cb(JSON.stringify(e.candidate)); };")
+            "console.log('[WebRTC-JS] Installing onicecandidate handler on pc, state=' + pc.iceGatheringState);"
+            + "pc.onicecandidate = function(e) {"
+            + "  console.log('[WebRTC-JS] onicecandidate fired, candidate=' + (e.candidate ? 'yes' : 'null'));"
+            + "  if(e.candidate) cb(JSON.stringify(e.candidate));"
+            + "};")
     private static native void setOnIceCandidate(JSObject pc, IceCallback cb);
 
     /**
@@ -627,7 +631,11 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param cb callback invoked with the new connection state string
      */
     @JSBody(params = {"pc", "cb"}, script =
-            "pc.onconnectionstatechange = function() { cb(pc.connectionState); };")
+            "console.log('[WebRTC-JS] Installing onconnectionstatechange handler');"
+            + "pc.onconnectionstatechange = function() {"
+            + "  console.log('[WebRTC-JS] connectionstatechange: ' + pc.connectionState);"
+            + "  cb(pc.connectionState);"
+            + "};")
     private static native void setOnConnectionStateChange(JSObject pc, ConnectionStateCallback cb);
 
     /**
@@ -676,10 +684,11 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param errorCb   callback invoked with the error string on failure
      */
     @JSBody(params = {"pc", "successCb", "errorCb"}, script =
-            "pc.createOffer()"
-            + ".then(function(o){return pc.setLocalDescription(o).then(function(){return o;});})"
-            + ".then(function(o){successCb(o.sdp);})"
-            + ".catch(function(e){errorCb('' + e);});")
+            "console.log('[WebRTC-JS] createOffer starting, iceGathering=' + pc.iceGatheringState);"
+            + "pc.createOffer()"
+            + ".then(function(o){console.log('[WebRTC-JS] offer created, setting local desc'); return pc.setLocalDescription(o).then(function(){return o;});})"
+            + ".then(function(o){console.log('[WebRTC-JS] local desc set, iceGathering=' + pc.iceGatheringState); successCb(o.sdp);})"
+            + ".catch(function(e){console.log('[WebRTC-JS] createOffer error: ' + e); errorCb('' + e);});")
     private static native void createOfferNative(JSObject pc, StringCallback successCb,
                                                   StringCallback errorCb);
 
@@ -698,11 +707,12 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param errorCb   callback invoked with the error string on failure
      */
     @JSBody(params = {"pc", "sdp", "successCb", "errorCb"}, script =
-            "pc.setRemoteDescription({type:'offer',sdp:sdp})"
-            + ".then(function(){return pc.createAnswer();})"
-            + ".then(function(a){return pc.setLocalDescription(a).then(function(){return a;});})"
-            + ".then(function(a){successCb(a.sdp);})"
-            + ".catch(function(e){errorCb('' + e);});")
+            "console.log('[WebRTC-JS] doSignalingHandshake starting');"
+            + "pc.setRemoteDescription({type:'offer',sdp:sdp})"
+            + ".then(function(){console.log('[WebRTC-JS] remote desc set, creating answer'); return pc.createAnswer();})"
+            + ".then(function(a){console.log('[WebRTC-JS] answer created, setting local desc'); return pc.setLocalDescription(a).then(function(){return a;});})"
+            + ".then(function(a){console.log('[WebRTC-JS] local desc set, iceGathering=' + pc.iceGatheringState); successCb(a.sdp);})"
+            + ".catch(function(e){console.log('[WebRTC-JS] handshake error: ' + e); errorCb('' + e);});")
     private static native void doSignalingHandshake(JSObject pc, String sdp,
                                                      StringCallback successCb,
                                                      StringCallback errorCb);
@@ -720,9 +730,10 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @param errorCb   callback invoked with the error string on failure
      */
     @JSBody(params = {"pc", "sdp", "successCb", "errorCb"}, script =
-            "pc.setRemoteDescription({type:'answer',sdp:sdp})"
-            + ".then(function(){successCb();})"
-            + ".catch(function(e){errorCb('' + e);});")
+            "console.log('[WebRTC-JS] setRemoteAnswer, signalingState=' + pc.signalingState + ' iceGathering=' + pc.iceGatheringState);"
+            + "pc.setRemoteDescription({type:'answer',sdp:sdp})"
+            + ".then(function(){console.log('[WebRTC-JS] remote answer set, iceGathering=' + pc.iceGatheringState); successCb();})"
+            + ".catch(function(e){console.log('[WebRTC-JS] setRemoteAnswer error: ' + e); errorCb('' + e);});")
     private static native void setRemoteAnswerNative(JSObject pc, String sdp,
                                                       VoidCallback successCb,
                                                       StringCallback errorCb);

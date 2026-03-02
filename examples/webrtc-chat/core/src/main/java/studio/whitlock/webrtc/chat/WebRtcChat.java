@@ -20,9 +20,12 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.ChatCallback {
 
     private final ChatSignalClient signalClient;
+    private final ChatSignalServer signalServer;
     private Stage stage;
     private Skin skin;
     private ConnectionManager connectionManager;
+    private EmbeddedChatServer embeddedServer;
+    private boolean hosting;
 
     private enum AppState { CONNECT, CONNECTING, CHATTING }
     private AppState state = AppState.CONNECT;
@@ -34,7 +37,12 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
     private StringBuilder messageBuffer = new StringBuilder();
 
     public WebRtcChat(ChatSignalClient signalClient) {
+        this(signalClient, null);
+    }
+
+    public WebRtcChat(ChatSignalClient signalClient, ChatSignalServer signalServer) {
         this.signalClient = signalClient;
+        this.signalServer = signalServer;
     }
 
     @Override
@@ -48,6 +56,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
     private void buildConnectUI() {
         stage.clear();
         state = AppState.CONNECT;
+        hosting = false;
 
         Table root = new Table();
         root.setFillParent(true);
@@ -58,8 +67,23 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         title.setFontScale(2f);
         root.add(title).padBottom(40).row();
 
-        Label connectLabel = new Label("Enter server address:", skin);
-        root.add(connectLabel).padBottom(10).row();
+        if (signalServer != null) {
+            TextButton hostButton = new TextButton("Host Server (port 9090)", skin);
+            hostButton.addListener(new ClickListener() {
+                @Override
+                public void clicked(InputEvent event, float x, float y) {
+                    startHosting();
+                }
+            });
+            root.add(hostButton).width(300).height(50).padBottom(20).row();
+
+            Label orLabel = new Label("-- or connect to a host --", skin);
+            orLabel.setColor(Color.LIGHT_GRAY);
+            root.add(orLabel).padBottom(10).row();
+        } else {
+            Label connectLabel = new Label("Enter server address:", skin);
+            root.add(connectLabel).padBottom(10).row();
+        }
 
         Table connectRow = new Table();
         final TextField ipField = new TextField("localhost", skin);
@@ -76,6 +100,29 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         connectRow.add(ipField).width(250).height(40).padRight(10);
         connectRow.add(connectButton).width(100).height(40);
         root.add(connectRow).row();
+    }
+
+    private void startHosting() {
+        hosting = true;
+        embeddedServer = new EmbeddedChatServer(signalServer, new EmbeddedChatServer.HostCallback() {
+            public void onStarted() {
+                buildChatUI();
+            }
+
+            public void onMessageReceived(String message) {
+                if (state == AppState.CHATTING) {
+                    appendMessage(message);
+                }
+            }
+
+            public void onError(String error) {
+                if (statusLabel != null) {
+                    statusLabel.setText("Error: " + error);
+                    statusLabel.setColor(Color.RED);
+                }
+            }
+        });
+        embeddedServer.start(9090);
     }
 
     private void startConnection(String ip) {
@@ -120,7 +167,11 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         root.pad(10);
         stage.addActor(root);
 
-        statusLabel = new Label("Connected to server", skin);
+        if (hosting) {
+            statusLabel = new Label("Hosting on port 9090", skin);
+        } else {
+            statusLabel = new Label("Connected to server", skin);
+        }
         statusLabel.setColor(Color.GREEN);
         root.add(statusLabel).expandX().fillX().padBottom(5).row();
 
@@ -155,10 +206,14 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
             }
         });
 
-        TextButton disconnectButton = new TextButton("Disconnect", skin);
+        TextButton disconnectButton = new TextButton(hosting ? "Stop" : "Disconnect", skin);
         disconnectButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                if (hosting && embeddedServer != null) {
+                    embeddedServer.stop();
+                    embeddedServer = null;
+                }
                 if (connectionManager != null) {
                     connectionManager.disconnect();
                     connectionManager = null;
@@ -177,9 +232,19 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
 
     private void sendCurrentMessage() {
         String text = inputField.getText().trim();
-        if (text.isEmpty() || connectionManager == null || !connectionManager.isConnected()) return;
-        connectionManager.sendMessage(text);
-        appendMessage("You: " + text);
+        if (text.isEmpty()) return;
+
+        if (hosting) {
+            if (embeddedServer != null && embeddedServer.isRunning()) {
+                embeddedServer.broadcastChat(text);
+            }
+        } else {
+            if (connectionManager != null && connectionManager.isConnected()) {
+                connectionManager.sendMessage(text);
+                appendMessage("You: " + text);
+            }
+        }
+
         inputField.setText("");
         stage.setKeyboardFocus(inputField);
     }
@@ -208,6 +273,9 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
 
     @Override
     public void dispose() {
+        if (embeddedServer != null) {
+            embeddedServer.stop();
+        }
         if (connectionManager != null) {
             connectionManager.disconnect();
         }
@@ -215,7 +283,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         skin.dispose();
     }
 
-    // --- ConnectionManager.ChatCallback ---
+    // --- ConnectionManager.ChatCallback (client mode) ---
 
     @Override
     public void onConnected() {

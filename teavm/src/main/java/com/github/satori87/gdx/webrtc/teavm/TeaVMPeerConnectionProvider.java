@@ -584,8 +584,9 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
     @JSBody(params = {"stunUrl", "turnUrl", "turnUser", "turnPass", "forceRelay"}, script =
             "var servers = [{urls: stunUrl}];"
             + "if(turnUrl && turnUrl.length > 0) servers.push({urls: turnUrl, username: turnUser || '', credential: turnPass || ''});"
-            + "var cfg = {iceServers: servers};"
+            + "var cfg = {iceServers: servers, iceCandidatePoolSize: 1};"
             + "if(forceRelay) { cfg.iceTransportPolicy = 'relay'; }"
+            + "console.log('[WebRTC-JS] Creating PC with config:', JSON.stringify(cfg));"
             + "return new RTCPeerConnection(cfg);")
     private static native JSObject createPeerConnectionNative(String stunUrl, String turnUrl,
                                                                String turnUser, String turnPass,
@@ -697,6 +698,7 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
             + "      if(pc.iceGatheringState === 'complete'){"
             + "        var sdp = pc.localDescription.sdp;"
             + "        console.log('[WebRTC-JS] ICE complete, candidates in SDP: ' + (sdp.match(/a=candidate/g)||[]).length);"
+            + "        console.log('[WebRTC-JS] Offer SDP:\\n' + sdp);"
             + "        successCb(sdp);"
             + "      }"
             + "    });"

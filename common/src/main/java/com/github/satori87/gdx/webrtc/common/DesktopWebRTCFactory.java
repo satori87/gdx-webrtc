@@ -5,6 +5,10 @@ import com.github.satori87.gdx.webrtc.WebRTCClient;
 import com.github.satori87.gdx.webrtc.WebRTCClientListener;
 import com.github.satori87.gdx.webrtc.WebRTCConfiguration;
 import com.github.satori87.gdx.webrtc.WebRTCFactory;
+import com.github.satori87.gdx.webrtc.transport.BaseWebRTCClientTransport;
+import com.github.satori87.gdx.webrtc.transport.BaseWebRTCServerTransport;
+import com.github.satori87.gdx.webrtc.transport.WebRTCClientTransport;
+import com.github.satori87.gdx.webrtc.transport.WebRTCServerTransport;
 
 /**
  * Desktop/JVM implementation of {@link WebRTCFactory} that creates WebRTC clients
@@ -53,6 +57,32 @@ public class DesktopWebRTCFactory implements WebRTCFactory {
         return new BaseWebRTCClient("[WebRTC-Desktop] ", config, listener,
                 new DesktopPeerConnectionProvider(),
                 new DesktopSignalingProvider(),
+                new ExecutorScheduler());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Creates a client transport backed by the desktop WebRTC stack
+     * (webrtc-java). Uses external signaling — no
+     * {@link DesktopSignalingProvider} is used.</p>
+     */
+    public WebRTCClientTransport createClientTransport(WebRTCConfiguration config) {
+        return new BaseWebRTCClientTransport("[WebRTC-Desktop] ", config,
+                new DesktopPeerConnectionProvider(),
+                new ExecutorScheduler());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Creates a server transport backed by the desktop WebRTC stack
+     * (webrtc-java). Uses external signaling — no
+     * {@link DesktopSignalingProvider} is used.</p>
+     */
+    public WebRTCServerTransport createServerTransport(WebRTCConfiguration config) {
+        return new BaseWebRTCServerTransport("[WebRTC-Desktop] ", config,
+                new DesktopPeerConnectionProvider(),
                 new ExecutorScheduler());
     }
 }

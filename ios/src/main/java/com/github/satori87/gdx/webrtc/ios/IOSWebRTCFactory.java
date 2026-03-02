@@ -5,6 +5,10 @@ import com.github.satori87.gdx.webrtc.WebRTCClient;
 import com.github.satori87.gdx.webrtc.WebRTCClientListener;
 import com.github.satori87.gdx.webrtc.WebRTCConfiguration;
 import com.github.satori87.gdx.webrtc.WebRTCFactory;
+import com.github.satori87.gdx.webrtc.transport.BaseWebRTCClientTransport;
+import com.github.satori87.gdx.webrtc.transport.BaseWebRTCServerTransport;
+import com.github.satori87.gdx.webrtc.transport.WebRTCClientTransport;
+import com.github.satori87.gdx.webrtc.transport.WebRTCServerTransport;
 
 /**
  * iOS (RoboVM) WebRTC factory using native WebRTC.framework.
@@ -29,6 +33,30 @@ public class IOSWebRTCFactory implements WebRTCFactory {
         return new BaseWebRTCClient("[WebRTC-iOS] ", config, listener,
                 new IOSPeerConnectionProvider(),
                 new IOSSignalingProvider(),
+                new ExecutorScheduler());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Creates a client transport backed by iOS WebRTC.framework via RoboVM
+     * bindings. Uses external signaling.</p>
+     */
+    public WebRTCClientTransport createClientTransport(WebRTCConfiguration config) {
+        return new BaseWebRTCClientTransport("[WebRTC-iOS] ", config,
+                new IOSPeerConnectionProvider(),
+                new ExecutorScheduler());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Creates a server transport backed by iOS WebRTC.framework via RoboVM
+     * bindings. Uses external signaling.</p>
+     */
+    public WebRTCServerTransport createServerTransport(WebRTCConfiguration config) {
+        return new BaseWebRTCServerTransport("[WebRTC-iOS] ", config,
+                new IOSPeerConnectionProvider(),
                 new ExecutorScheduler());
     }
 }

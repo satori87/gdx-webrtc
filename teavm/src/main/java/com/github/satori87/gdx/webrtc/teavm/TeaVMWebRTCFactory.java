@@ -5,6 +5,10 @@ import com.github.satori87.gdx.webrtc.WebRTCClient;
 import com.github.satori87.gdx.webrtc.WebRTCClientListener;
 import com.github.satori87.gdx.webrtc.WebRTCConfiguration;
 import com.github.satori87.gdx.webrtc.WebRTCFactory;
+import com.github.satori87.gdx.webrtc.transport.BaseWebRTCClientTransport;
+import com.github.satori87.gdx.webrtc.transport.BaseWebRTCServerTransport;
+import com.github.satori87.gdx.webrtc.transport.WebRTCClientTransport;
+import com.github.satori87.gdx.webrtc.transport.WebRTCServerTransport;
 
 /**
  * Factory for creating browser-based WebRTC clients using TeaVM's JavaScript interop.
@@ -56,6 +60,32 @@ public class TeaVMWebRTCFactory implements WebRTCFactory {
         return new BaseWebRTCClient("[WebRTC-Browser] ", config, listener,
                 new TeaVMPeerConnectionProvider(),
                 new TeaVMSignalingProvider(),
+                new TeaVMScheduler());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Creates a client transport backed by the browser's native
+     * {@code RTCPeerConnection} API via TeaVM's {@code @JSBody}. Uses
+     * external signaling.</p>
+     */
+    public WebRTCClientTransport createClientTransport(WebRTCConfiguration config) {
+        return new BaseWebRTCClientTransport("[WebRTC-Browser] ", config,
+                new TeaVMPeerConnectionProvider(),
+                new TeaVMScheduler());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Creates a server transport backed by the browser's native
+     * {@code RTCPeerConnection} API via TeaVM's {@code @JSBody}. Uses
+     * external signaling.</p>
+     */
+    public WebRTCServerTransport createServerTransport(WebRTCConfiguration config) {
+        return new BaseWebRTCServerTransport("[WebRTC-Browser] ", config,
+                new TeaVMPeerConnectionProvider(),
                 new TeaVMScheduler());
     }
 }

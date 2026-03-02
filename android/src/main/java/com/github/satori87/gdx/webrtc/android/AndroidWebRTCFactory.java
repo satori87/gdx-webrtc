@@ -7,6 +7,10 @@ import com.github.satori87.gdx.webrtc.WebRTCClient;
 import com.github.satori87.gdx.webrtc.WebRTCClientListener;
 import com.github.satori87.gdx.webrtc.WebRTCConfiguration;
 import com.github.satori87.gdx.webrtc.WebRTCFactory;
+import com.github.satori87.gdx.webrtc.transport.BaseWebRTCClientTransport;
+import com.github.satori87.gdx.webrtc.transport.BaseWebRTCServerTransport;
+import com.github.satori87.gdx.webrtc.transport.WebRTCClientTransport;
+import com.github.satori87.gdx.webrtc.transport.WebRTCServerTransport;
 
 /**
  * Android implementation of {@link WebRTCFactory} that creates WebRTC clients
@@ -93,6 +97,30 @@ public class AndroidWebRTCFactory implements WebRTCFactory {
         return new BaseWebRTCClient("[WebRTC-Android] ", config, listener,
                 new AndroidPeerConnectionProvider(applicationContext),
                 new AndroidSignalingProvider(),
+                new ExecutorScheduler());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Creates a client transport backed by the Google WebRTC SDK for Android.
+     * Uses external signaling.</p>
+     */
+    public WebRTCClientTransport createClientTransport(WebRTCConfiguration config) {
+        return new BaseWebRTCClientTransport("[WebRTC-Android] ", config,
+                new AndroidPeerConnectionProvider(applicationContext),
+                new ExecutorScheduler());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Creates a server transport backed by the Google WebRTC SDK for Android.
+     * Uses external signaling.</p>
+     */
+    public WebRTCServerTransport createServerTransport(WebRTCConfiguration config) {
+        return new BaseWebRTCServerTransport("[WebRTC-Android] ", config,
+                new AndroidPeerConnectionProvider(applicationContext),
                 new ExecutorScheduler());
     }
 }

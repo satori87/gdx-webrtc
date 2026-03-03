@@ -2,6 +2,8 @@ package com.github.satori87.gdx.webrtc.lwjgl3;
 
 import com.github.satori87.gdx.webrtc.*;
 import dev.onvoid.webrtc.*;
+import dev.onvoid.webrtc.media.audio.AudioDeviceModule;
+import dev.onvoid.webrtc.media.audio.AudioLayer;
 
 import java.nio.ByteBuffer;
 
@@ -43,6 +45,28 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
     private static final String TAG = "[WebRTC-Desktop] ";
 
     /**
+     * Whether to use a dummy audio device module for headless server environments.
+     * Must be set before the first call to {@link #getFactory()}.
+     */
+    private static boolean headless;
+
+    /**
+     * Configures headless mode for server environments without audio hardware.
+     *
+     * <p>When {@code true}, the {@link PeerConnectionFactory} is created with a
+     * dummy {@link AudioDeviceModule} ({@link AudioLayer#kDummyAudio}), preventing
+     * failures on machines without audio hardware (e.g., dedicated game servers).</p>
+     *
+     * <p>Must be called before any WebRTC operations (before the factory is
+     * lazily initialized).</p>
+     *
+     * @param h {@code true} for headless/server mode, {@code false} for desktop
+     */
+    public static void setHeadless(boolean h) {
+        headless = h;
+    }
+
+    /**
      * Singleton native peer connection factory instance, lazily initialized.
      * Shared across all {@code DesktopPeerConnectionProvider} instances.
      */
@@ -52,8 +76,9 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
      * Returns the singleton {@link PeerConnectionFactory}, creating it on first call.
      *
      * <p>This method is synchronized to prevent multiple threads from creating
-     * duplicate factories. If factory creation fails, the error is logged and
-     * {@code null} is returned.</p>
+     * duplicate factories. If {@link #headless} is {@code true}, the factory is
+     * created with a dummy audio device module for server environments. If factory
+     * creation fails, the error is logged and {@code null} is returned.</p>
      *
      * @return the shared {@link PeerConnectionFactory} instance, or {@code null}
      *         if initialization failed
@@ -61,7 +86,12 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
     private static synchronized PeerConnectionFactory getFactory() {
         if (factory == null) {
             try {
-                factory = new PeerConnectionFactory();
+                if (headless) {
+                    factory = new PeerConnectionFactory(
+                            new AudioDeviceModule(AudioLayer.kDummyAudio));
+                } else {
+                    factory = new PeerConnectionFactory();
+                }
             } catch (Exception e) {
                 System.err.println(TAG + "PeerConnectionFactory FAILED: " + e);
             }

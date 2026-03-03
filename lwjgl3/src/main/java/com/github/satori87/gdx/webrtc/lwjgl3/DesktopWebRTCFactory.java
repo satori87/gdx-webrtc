@@ -30,6 +30,9 @@ import com.github.satori87.gdx.webrtc.transport.WebRTCServerTransport;
  * <pre>
  * // In your desktop launcher:
  * WebRTCClients.FACTORY = new DesktopWebRTCFactory();
+ *
+ * // For headless dedicated servers (no audio hardware):
+ * WebRTCClients.FACTORY = new DesktopWebRTCFactory(true);
  * </pre>
  *
  * @see WebRTCFactory
@@ -39,6 +42,24 @@ import com.github.satori87.gdx.webrtc.transport.WebRTCServerTransport;
  * @see ExecutorScheduler
  */
 public class DesktopWebRTCFactory implements WebRTCFactory {
+
+    /**
+     * Creates a desktop WebRTC factory for normal desktop environments.
+     */
+    public DesktopWebRTCFactory() {
+        this(false);
+    }
+
+    /**
+     * Creates a desktop WebRTC factory.
+     *
+     * @param headless {@code true} for headless server environments without
+     *                 audio hardware (uses a dummy audio device module),
+     *                 {@code false} for normal desktop use
+     */
+    public DesktopWebRTCFactory(boolean headless) {
+        DesktopPeerConnectionProvider.setHeadless(headless);
+    }
 
     /**
      * {@inheritDoc}

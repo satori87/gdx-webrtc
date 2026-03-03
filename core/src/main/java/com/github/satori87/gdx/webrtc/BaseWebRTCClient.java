@@ -224,16 +224,13 @@ public class BaseWebRTCClient implements WebRTCClient {
     public void connect() {
         signalingProvider.connect(config.signalingServerUrl, new SignalingEventHandler() {
             public void onOpen() {
-                log("Connected to signaling server");
             }
             public void onMessage(SignalMessage msg) {
                 handleSignalingMessage(msg);
             }
             public void onClose(String reason) {
-                log("Signaling connection closed: " + reason);
             }
             public void onError(String error) {
-                log("Signaling error: " + error);
                 if (listener != null) {
                     listener.onError("Signaling: " + error);
                 }
@@ -292,7 +289,6 @@ public class BaseWebRTCClient implements WebRTCClient {
                 try {
                     localId = Integer.parseInt(msg.data.trim());
                 } catch (NumberFormatException e) { /* ignore */ }
-                log("Assigned peer ID: " + localId);
                 if (listener != null) {
                     listener.onSignalingConnected(localId);
                 }
@@ -310,7 +306,6 @@ public class BaseWebRTCClient implements WebRTCClient {
                 handleIce(msg.source, msg.data);
                 break;
             case SignalMessage.TYPE_ERROR:
-                log("Signaling error: " + msg.data);
                 if (listener != null) {
                     listener.onError(msg.data);
                 }
@@ -346,8 +341,6 @@ public class BaseWebRTCClient implements WebRTCClient {
      * @param remotePeerId the peer ID of the connection requester
      */
     private void handleConnectRequest(final int remotePeerId) {
-        log("Connect request from peer " + remotePeerId + ", creating offer...");
-
         if (!pcProvider.initialize()) {
             if (listener != null) {
                 listener.onError("WebRTC factory initialization failed");
@@ -365,7 +358,6 @@ public class BaseWebRTCClient implements WebRTCClient {
         try {
             peer.peerConnection = pcProvider.createPeerConnection(config, pcHandler);
         } catch (Exception e) {
-            log("createPeerConnection FAILED: " + e);
             if (listener != null) {
                 listener.onError("Failed to create peer connection: " + e.getMessage());
             }
@@ -386,13 +378,11 @@ public class BaseWebRTCClient implements WebRTCClient {
 
         pcProvider.createOffer(peer.peerConnection, new SdpResultCallback() {
             public void onSuccess(String sdp) {
-                log("Offer created, sending to peer " + remotePeerId);
                 SignalMessage offer = new SignalMessage(
                         SignalMessage.TYPE_OFFER, localId, remotePeerId, sdp);
                 signalingProvider.send(offer);
             }
             public void onFailure(String error) {
-                log("Create offer failed: " + error);
                 if (listener != null) {
                     listener.onError("Create offer failed: " + error);
                 }
@@ -418,8 +408,6 @@ public class BaseWebRTCClient implements WebRTCClient {
      * @param sdpOffer     the remote SDP offer string
      */
     private void handleOffer(final int remotePeerId, String sdpOffer) {
-        log("Received offer from peer " + remotePeerId);
-
         if (!pcProvider.initialize()) {
             if (listener != null) {
                 listener.onError("WebRTC factory initialization failed");
@@ -437,7 +425,6 @@ public class BaseWebRTCClient implements WebRTCClient {
         try {
             peer.peerConnection = pcProvider.createPeerConnection(config, pcHandler);
         } catch (Exception e) {
-            log("createPeerConnection FAILED: " + e);
             if (listener != null) {
                 listener.onError("Failed to create peer connection: " + e.getMessage());
             }
@@ -453,13 +440,11 @@ public class BaseWebRTCClient implements WebRTCClient {
 
         pcProvider.handleOffer(peer.peerConnection, sdpOffer, new SdpResultCallback() {
             public void onSuccess(String answerSdp) {
-                log("Answer created, sending to peer " + remotePeerId);
                 SignalMessage answer = new SignalMessage(
                         SignalMessage.TYPE_ANSWER, localId, remotePeerId, answerSdp);
                 signalingProvider.send(answer);
             }
             public void onFailure(String error) {
-                log("Handshake failed: " + error);
                 if (listener != null) {
                     listener.onError("WebRTC handshake failed: " + error);
                 }
@@ -481,7 +466,6 @@ public class BaseWebRTCClient implements WebRTCClient {
         if (peer == null || peer.peerConnection == null) {
             return;
         }
-        log("Received answer from peer " + remotePeerId);
         pcProvider.setRemoteAnswer(peer.peerConnection, sdpAnswer);
     }
 
@@ -524,8 +508,6 @@ public class BaseWebRTCClient implements WebRTCClient {
      * @param state the new connection state (one of the {@link ConnectionState} constants)
      */
     void handleConnectionStateChanged(final PeerState peer, int state) {
-        log("Peer " + peer.peerId + " connection state: " + state);
-
         if (state == ConnectionState.CONNECTED) {
             peer.iceClosedOrFailed = false;
             peer.disconnectedAtMs = 0;
@@ -539,7 +521,6 @@ public class BaseWebRTCClient implements WebRTCClient {
 
             if (peer.reliableChannel != null
                     && !pcProvider.isChannelOpen(peer.reliableChannel)) {
-                log("ICE recovered but reliable channel is not open — disconnecting");
                 peer.connected = false;
                 if (listener != null) {
                     listener.onDisconnected(peer);
@@ -549,8 +530,6 @@ public class BaseWebRTCClient implements WebRTCClient {
         } else if (state == ConnectionState.DISCONNECTED) {
             peer.disconnectedAtMs = System.currentTimeMillis();
             final long stamp = peer.disconnectedAtMs;
-            log("Peer " + peer.peerId + " temporarily disconnected, will restart ICE in "
-                    + config.iceRestartDelayMs + "ms...");
 
             if (peer.disconnectedTimerHandle != null) {
                 scheduler.cancel(peer.disconnectedTimerHandle);
@@ -561,11 +540,10 @@ public class BaseWebRTCClient implements WebRTCClient {
                         if (peer.disconnectedAtMs == stamp
                                 && !peer.iceClosedOrFailed
                                 && peer.peerConnection != null) {
-                            log("Still disconnected, restarting ICE for peer " + peer.peerId);
                             pcProvider.restartIce(peer.peerConnection);
                         }
                     } catch (Exception e) {
-                        log("Delayed ICE restart failed: " + e);
+                        /* ICE restart failed */
                     }
                 }
             }, config.iceRestartDelayMs);
@@ -577,8 +555,6 @@ public class BaseWebRTCClient implements WebRTCClient {
             peer.cancelTimers();
 
             if (peer.iceRestartAttempts > config.maxIceRestartAttempts) {
-                log("Peer " + peer.peerId + " connection failed after "
-                        + peer.iceRestartAttempts + " ICE restart attempts, giving up");
                 peer.connected = false;
                 if (listener != null) {
                     listener.onDisconnected(peer);
@@ -586,8 +562,6 @@ public class BaseWebRTCClient implements WebRTCClient {
             } else {
                 long backoffMs = (long) config.iceBackoffBaseMs
                         * (1L << (peer.iceRestartAttempts - 1));
-                log("Peer " + peer.peerId + " connection failed, ICE restart attempt "
-                        + peer.iceRestartAttempts + " in " + backoffMs + "ms...");
 
                 peer.failedTimerHandle = scheduler.schedule(new Runnable() {
                     public void run() {
@@ -596,7 +570,6 @@ public class BaseWebRTCClient implements WebRTCClient {
                                 pcProvider.restartIce(peer.peerConnection);
                             }
                         } catch (Exception e) {
-                            log("ICE restart failed: " + e);
                             peer.connected = false;
                             if (listener != null) {
                                 listener.onDisconnected(peer);
@@ -651,7 +624,6 @@ public class BaseWebRTCClient implements WebRTCClient {
             }
 
             public void onDataChannel(Object channel, String label) {
-                log("Data channel received from peer " + peer.peerId + ": " + label);
                 if ("reliable".equals(label)) {
                     peer.reliableChannel = channel;
                     pcProvider.setupReceivedChannel(channel, true, dcHandler);
@@ -684,24 +656,20 @@ public class BaseWebRTCClient implements WebRTCClient {
     DataChannelEventHandler createDataChannelHandler(final PeerState peer) {
         return new DataChannelEventHandler() {
             public void onReliableOpen() {
-                log("Peer " + peer.peerId + " reliable channel OPEN");
                 peer.connected = true;
                 if (listener != null) {
                     listener.onConnected(peer);
                 }
             }
             public void onReliableClose() {
-                log("Peer " + peer.peerId + " reliable channel CLOSED");
                 peer.connected = false;
                 if (listener != null) {
                     listener.onDisconnected(peer);
                 }
             }
             public void onUnreliableOpen() {
-                log("Peer " + peer.peerId + " unreliable channel OPEN");
             }
             public void onUnreliableClose() {
-                log("Peer " + peer.peerId + " unreliable channel CLOSED");
             }
             public void onMessage(byte[] data, boolean reliable) {
                 if (listener != null) {

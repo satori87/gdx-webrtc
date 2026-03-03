@@ -160,7 +160,6 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
         final int connId = nextConnId++;
 
         if (!pcProvider.initialize()) {
-            log("WebRTC factory initialization failed for connId " + connId);
             return connId;
         }
 
@@ -175,13 +174,11 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
         try {
             peer.peerConnection = pcProvider.createPeerConnection(effectiveConfig, pcHandler);
         } catch (Exception e) {
-            log("createPeerConnection FAILED for connId " + connId + ": " + e);
             peers.remove(Integer.valueOf(connId));
             return connId;
         }
 
         if (peer.peerConnection == null) {
-            log("createPeerConnection returned null for connId " + connId);
             peers.remove(Integer.valueOf(connId));
             return connId;
         }
@@ -193,11 +190,9 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
 
         pcProvider.createOffer(peer.peerConnection, new SdpResultCallback() {
             public void onSuccess(String sdp) {
-                log("Offer created for connId " + connId);
                 callback.onOffer(connId, sdp);
             }
             public void onFailure(String error) {
-                log("Create offer failed for connId " + connId + ": " + error);
             }
         });
 
@@ -210,7 +205,6 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
         if (peer == null || peer.peerConnection == null) {
             return;
         }
-        log("Setting answer for connId " + connId);
         pcProvider.setRemoteAnswer(peer.peerConnection, sdpAnswer);
     }
 
@@ -331,8 +325,6 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
      * @param state the new connection state (one of the {@link ConnectionState} constants)
      */
     void handleConnectionStateChanged(final PeerState peer, int state) {
-        log("Peer " + peer.connId + " connection state: " + state);
-
         if (state == ConnectionState.CONNECTED) {
             peer.iceClosedOrFailed = false;
             peer.disconnectedAtMs = 0;
@@ -346,8 +338,6 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
 
             if (peer.reliableChannel != null
                     && !pcProvider.isChannelOpen(peer.reliableChannel)) {
-                log("Peer " + peer.connId
-                        + " ICE recovered but reliable channel is not open — disconnecting");
                 peer.connected = false;
                 if (listener != null) {
                     listener.onClientDisconnected(peer.connId);
@@ -357,8 +347,6 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
         } else if (state == ConnectionState.DISCONNECTED) {
             peer.disconnectedAtMs = System.currentTimeMillis();
             final long stamp = peer.disconnectedAtMs;
-            log("Peer " + peer.connId + " temporarily disconnected, will restart ICE in "
-                    + config.iceRestartDelayMs + "ms...");
 
             if (peer.disconnectedTimerHandle != null) {
                 scheduler.cancel(peer.disconnectedTimerHandle);
@@ -369,13 +357,10 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
                         if (peer.disconnectedAtMs == stamp
                                 && !peer.iceClosedOrFailed
                                 && peer.peerConnection != null) {
-                            log("Peer " + peer.connId
-                                    + " still disconnected, restarting ICE");
                             pcProvider.restartIce(peer.peerConnection);
                         }
                     } catch (Exception e) {
-                        log("Delayed ICE restart failed for peer "
-                                + peer.connId + ": " + e);
+                        /* ICE restart failed */
                     }
                 }
             }, config.iceRestartDelayMs);
@@ -387,9 +372,6 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
             cancelTimers(peer);
 
             if (peer.iceRestartAttempts > config.maxIceRestartAttempts) {
-                log("Peer " + peer.connId + " connection failed after "
-                        + peer.iceRestartAttempts
-                        + " ICE restart attempts, giving up");
                 peer.connected = false;
                 if (listener != null) {
                     listener.onClientDisconnected(peer.connId);
@@ -397,9 +379,6 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
             } else {
                 long backoffMs = (long) config.iceBackoffBaseMs
                         * (1L << (peer.iceRestartAttempts - 1));
-                log("Peer " + peer.connId
-                        + " connection failed, ICE restart attempt "
-                        + peer.iceRestartAttempts + " in " + backoffMs + "ms...");
 
                 peer.failedTimerHandle = scheduler.schedule(new Runnable() {
                     public void run() {
@@ -409,8 +388,6 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
                                 pcProvider.restartIce(peer.peerConnection);
                             }
                         } catch (Exception e) {
-                            log("ICE restart failed for peer "
-                                    + peer.connId + ": " + e);
                             peer.connected = false;
                             if (listener != null) {
                                 listener.onClientDisconnected(peer.connId);
@@ -495,8 +472,6 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
             }
 
             public void onDataChannel(Object channel, String label) {
-                log("Peer " + peer.connId
-                        + " received data channel (unexpected on server): " + label);
             }
         };
     }
@@ -511,25 +486,21 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
     private DataChannelEventHandler createDataChannelHandler(final PeerState peer) {
         return new DataChannelEventHandler() {
             public void onReliableOpen() {
-                log("Peer " + peer.connId + " reliable channel OPEN");
                 peer.connected = true;
                 if (listener != null) {
                     listener.onClientConnected(peer.connId);
                 }
             }
             public void onReliableClose() {
-                log("Peer " + peer.connId + " reliable channel CLOSED");
                 peer.connected = false;
                 if (listener != null) {
                     listener.onClientDisconnected(peer.connId);
                 }
             }
             public void onUnreliableOpen() {
-                log("Peer " + peer.connId + " unreliable channel OPEN");
                 peer.unreliableOpen = true;
             }
             public void onUnreliableClose() {
-                log("Peer " + peer.connId + " unreliable channel CLOSED");
                 peer.unreliableOpen = false;
             }
             public void onMessage(byte[] data, boolean reliable) {

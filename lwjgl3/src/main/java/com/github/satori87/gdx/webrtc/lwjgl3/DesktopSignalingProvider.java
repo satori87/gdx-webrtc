@@ -1,4 +1,4 @@
-package com.github.satori87.gdx.webrtc.common;
+package com.github.satori87.gdx.webrtc.lwjgl3;
 
 import com.github.satori87.gdx.webrtc.SignalMessage;
 import com.github.satori87.gdx.webrtc.SignalingEventHandler;

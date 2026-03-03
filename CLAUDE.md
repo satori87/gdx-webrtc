@@ -31,7 +31,7 @@ Six modules, all under package `com.github.satori87.gdx.webrtc`:
 | Module | Purpose | Java Target | Key Dependencies |
 |--------|---------|-------------|-----------------|
 | **core** | Platform-agnostic API, shared logic (`BaseWebRTCClient`), strategy interfaces, `transport` subpackage for client/server transport | Java 8 | JUnit 5 (test only) |
-| **common** | Desktop implementation | Java 11 | `dev.onvoid.webrtc:webrtc-java`, `Java-WebSocket` |
+| **lwjgl3** | Desktop implementation | Java 11 | `dev.onvoid.webrtc:webrtc-java`, `Java-WebSocket` |
 | **teavm** | Browser implementation | Java 11 | `teavm-jso`, `teavm-jso-apis` (compileOnly) |
 | **android** | Android implementation | Java 8 | `io.github.webrtc-sdk:android`, `Java-WebSocket` |
 | **ios** | iOS (RoboVM) implementation | Java 8 | `robovm-rt`, `robovm-objc`, `robovm-cocoatouch` (compileOnly), `Java-WebSocket` |
@@ -59,7 +59,7 @@ Each platform module provides 3 strategy classes:
 
 | Platform | PeerConnectionProvider | SignalingProvider | Scheduler |
 |----------|----------------------|-------------------|-----------|
-| **common** (Desktop) | `DesktopPeerConnectionProvider` | `DesktopSignalingProvider` | `ExecutorScheduler` |
+| **lwjgl3** (Desktop) | `DesktopPeerConnectionProvider` | `DesktopSignalingProvider` | `ExecutorScheduler` |
 | **teavm** (Browser) | `TeaVMPeerConnectionProvider` | `TeaVMSignalingProvider` | `TeaVMScheduler` |
 | **android** | `AndroidPeerConnectionProvider` | `AndroidSignalingProvider` | `ExecutorScheduler` |
 | **ios** | `IOSPeerConnectionProvider` | `IOSSignalingProvider` | `ExecutorScheduler` |

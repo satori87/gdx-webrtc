@@ -10,7 +10,7 @@ include 'lwjgl3', 'teavm', 'core', 'signal-server', 'android', 'ios'
 includeBuild('../../') {
     dependencySubstitution {
         substitute module('com.github.satori87.gdx-webrtc:core') using project(':core')
-        substitute module('com.github.satori87.gdx-webrtc:common') using project(':common')
+        substitute module('com.github.satori87.gdx-webrtc:lwjgl3') using project(':lwjgl3')
         substitute module('com.github.satori87.gdx-webrtc:android') using project(':android')
         substitute module('com.github.satori87.gdx-webrtc:teavm') using project(':teavm')
         substitute module('com.github.satori87.gdx-webrtc:ios') using project(':ios')

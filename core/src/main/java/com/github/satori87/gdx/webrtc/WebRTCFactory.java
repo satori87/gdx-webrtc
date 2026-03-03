@@ -8,7 +8,7 @@ import com.github.satori87.gdx.webrtc.transport.WebRTCServerTransport;
  *
  * <p>Each platform module provides an implementation of this interface:</p>
  * <ul>
- *   <li>{@code DesktopWebRTCFactory} (common module) - Desktop/JVM via webrtc-java</li>
+ *   <li>{@code DesktopWebRTCFactory} (lwjgl3 module) - Desktop/JVM via webrtc-java</li>
  *   <li>{@code TeaVMWebRTCFactory} (teavm module) - Browser via JavaScript WebRTC API</li>
  *   <li>{@code AndroidWebRTCFactory} (android module) - Android via Google WebRTC SDK</li>
  *   <li>{@code IOSWebRTCFactory} (ios module) - iOS via WebRTC.framework + RoboVM</li>

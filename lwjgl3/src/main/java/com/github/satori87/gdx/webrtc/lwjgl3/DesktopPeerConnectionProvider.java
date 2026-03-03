@@ -1,4 +1,4 @@
-package com.github.satori87.gdx.webrtc.common;
+package com.github.satori87.gdx.webrtc.lwjgl3;
 
 import com.github.satori87.gdx.webrtc.*;
 import dev.onvoid.webrtc.*;
@@ -60,13 +60,10 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
      */
     private static synchronized PeerConnectionFactory getFactory() {
         if (factory == null) {
-            System.out.println(TAG + "Creating PeerConnectionFactory...");
             try {
                 factory = new PeerConnectionFactory();
-                System.out.println(TAG + "PeerConnectionFactory created OK");
             } catch (Exception e) {
                 System.err.println(TAG + "PeerConnectionFactory FAILED: " + e);
-                e.printStackTrace();
             }
         }
         return factory;
@@ -428,7 +425,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
      *
      * <p>Configures the following ICE servers:</p>
      * <ul>
-     *   <li>A STUN server (always present, from {@link WebRTCConfiguration#stunServer}).</li>
+     *   <li>STUN servers (always present, from {@link WebRTCConfiguration#stunServers}).</li>
      *   <li>An optional TURN server (from {@link WebRTCConfiguration#turnServer}),
      *       with username and password credentials if provided.</li>
      * </ul>

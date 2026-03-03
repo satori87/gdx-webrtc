@@ -125,7 +125,6 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
         try {
             peerConnection = pcProvider.createPeerConnection(config, pcHandler);
         } catch (Exception e) {
-            log("createPeerConnection FAILED: " + e);
             if (listener != null) {
                 listener.onError("Failed to create peer connection: " + e.getMessage());
             }
@@ -141,11 +140,9 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
 
         pcProvider.handleOffer(peerConnection, sdpOffer, new SdpResultCallback() {
             public void onSuccess(String answerSdp) {
-                log("Answer created, sending via callback");
                 callback.onAnswer(answerSdp);
             }
             public void onFailure(String error) {
-                log("Handshake failed: " + error);
                 if (listener != null) {
                     listener.onError("WebRTC handshake failed: " + error);
                 }
@@ -220,8 +217,6 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
      * @param state the new connection state (one of the {@link ConnectionState} constants)
      */
     void handleConnectionStateChanged(int state) {
-        log("Connection state: " + state);
-
         if (state == ConnectionState.CONNECTED) {
             iceClosedOrFailed = false;
             disconnectedAtMs = 0;
@@ -234,7 +229,6 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
 
             if (reliableChannel != null
                     && !pcProvider.isChannelOpen(reliableChannel)) {
-                log("ICE recovered but reliable channel is not open — disconnecting");
                 connected = false;
                 if (listener != null) {
                     listener.onDisconnected();
@@ -244,8 +238,6 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
         } else if (state == ConnectionState.DISCONNECTED) {
             disconnectedAtMs = System.currentTimeMillis();
             final long stamp = disconnectedAtMs;
-            log("Temporarily disconnected, will restart ICE in "
-                    + config.iceRestartDelayMs + "ms...");
 
             if (disconnectedTimerHandle != null) {
                 scheduler.cancel(disconnectedTimerHandle);
@@ -256,11 +248,10 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
                         if (disconnectedAtMs == stamp
                                 && !iceClosedOrFailed
                                 && peerConnection != null) {
-                            log("Still disconnected, restarting ICE");
                             pcProvider.restartIce(peerConnection);
                         }
                     } catch (Exception e) {
-                        log("Delayed ICE restart failed: " + e);
+                        /* ICE restart failed */
                     }
                 }
             }, config.iceRestartDelayMs);
@@ -272,8 +263,6 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
             cancelTimers();
 
             if (iceRestartAttempts > config.maxIceRestartAttempts) {
-                log("Connection failed after " + iceRestartAttempts
-                        + " ICE restart attempts, giving up");
                 connected = false;
                 if (listener != null) {
                     listener.onDisconnected();
@@ -281,8 +270,6 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
             } else {
                 long backoffMs = (long) config.iceBackoffBaseMs
                         * (1L << (iceRestartAttempts - 1));
-                log("Connection failed, ICE restart attempt "
-                        + iceRestartAttempts + " in " + backoffMs + "ms...");
 
                 failedTimerHandle = scheduler.schedule(new Runnable() {
                     public void run() {
@@ -291,7 +278,6 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
                                 pcProvider.restartIce(peerConnection);
                             }
                         } catch (Exception e) {
-                            log("ICE restart failed: " + e);
                             connected = false;
                             if (listener != null) {
                                 listener.onDisconnected();
@@ -372,7 +358,6 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
             }
 
             public void onDataChannel(Object channel, String label) {
-                log("Data channel received: " + label);
                 if ("reliable".equals(label)) {
                     reliableChannel = channel;
                     pcProvider.setupReceivedChannel(channel, true, dcHandler);
@@ -393,24 +378,20 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
     private DataChannelEventHandler createDataChannelHandler() {
         return new DataChannelEventHandler() {
             public void onReliableOpen() {
-                log("Reliable channel OPEN");
                 connected = true;
                 if (listener != null) {
                     listener.onConnected();
                 }
             }
             public void onReliableClose() {
-                log("Reliable channel CLOSED");
                 connected = false;
                 if (listener != null) {
                     listener.onDisconnected();
                 }
             }
             public void onUnreliableOpen() {
-                log("Unreliable channel OPEN");
             }
             public void onUnreliableClose() {
-                log("Unreliable channel CLOSED");
             }
             public void onMessage(byte[] data, boolean reliable) {
                 if (listener != null) {

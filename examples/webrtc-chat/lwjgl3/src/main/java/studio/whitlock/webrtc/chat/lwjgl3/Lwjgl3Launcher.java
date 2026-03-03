@@ -3,7 +3,7 @@ package studio.whitlock.webrtc.chat.lwjgl3;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.github.satori87.gdx.webrtc.WebRTCClients;
-import com.github.satori87.gdx.webrtc.common.DesktopWebRTCFactory;
+import com.github.satori87.gdx.webrtc.lwjgl3.DesktopWebRTCFactory;
 import studio.whitlock.webrtc.chat.WebRtcChat;
 
 /** Launches the desktop (LWJGL3) application. */

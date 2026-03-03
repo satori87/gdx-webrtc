@@ -198,12 +198,18 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * @return the native {@code RTCPeerConnection} as a {@link JSObject}
      */
     public Object createPeerConnection(WebRTCConfiguration config, final PeerEventHandler handler) {
-        String stunUrl = config.stunServer;
+        String[] stunUrls = config.stunServers != null ? config.stunServers : new String[] { config.stunServer };
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < stunUrls.length; i++) {
+            if (i > 0) sb.append("|");
+            sb.append(stunUrls[i]);
+        }
+        String stunUrlsJoined = sb.toString();
         String turnUrl = config.turnServer != null ? config.turnServer : "";
         String turnUser = config.turnUsername != null ? config.turnUsername : "";
         String turnPass = config.turnPassword != null ? config.turnPassword : "";
 
-        JSObject pc = createPeerConnectionNative(stunUrl, turnUrl, turnUser, turnPass, config.forceRelay);
+        JSObject pc = createPeerConnectionNative(stunUrlsJoined, turnUrl, turnUser, turnPass, config.forceRelay);
 
         IceCallback iceCb = new IceCallback() {
             public void onIce(String iceJson) {
@@ -591,20 +597,20 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
      * server parameters, and passes it to {@code new RTCPeerConnection(config)}. If
      * {@code forceRelay} is {@code true}, the ICE transport policy is set to {@code "relay"}.</p>
      *
-     * @param stunUrl    the STUN server URL (e.g. {@code "stun:stun.l.google.com:19302"})
+     * @param stunUrls   pipe-delimited STUN server URLs (e.g. {@code "stun:a|stun:b"})
      * @param turnUrl    the TURN server URL, or empty string if not configured
      * @param turnUser   the TURN server username, or empty string if not configured
      * @param turnPass   the TURN server password (credential), or empty string if not configured
      * @param forceRelay {@code true} to force all traffic through the TURN relay
      * @return the native {@code RTCPeerConnection} as a JSObject
      */
-    @JSBody(params = {"stunUrl", "turnUrl", "turnUser", "turnPass", "forceRelay"}, script =
-            "var servers = [{urls: stunUrl}];"
+    @JSBody(params = {"stunUrls", "turnUrl", "turnUser", "turnPass", "forceRelay"}, script =
+            "var servers = [{urls: stunUrls.split('|')}];"
             + "if(turnUrl && turnUrl.length > 0) servers.push({urls: turnUrl, username: turnUser || '', credential: turnPass || ''});"
             + "var cfg = {iceServers: servers};"
             + "if(forceRelay) { cfg.iceTransportPolicy = 'relay'; }"
             + "return new RTCPeerConnection(cfg);")
-    private static native JSObject createPeerConnectionNative(String stunUrl, String turnUrl,
+    private static native JSObject createPeerConnectionNative(String stunUrls, String turnUrl,
                                                                String turnUser, String turnPass,
                                                                boolean forceRelay);
 

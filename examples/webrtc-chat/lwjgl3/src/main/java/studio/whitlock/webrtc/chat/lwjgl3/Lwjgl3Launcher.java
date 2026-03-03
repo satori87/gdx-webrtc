@@ -11,11 +11,7 @@ public class Lwjgl3Launcher {
     public static void main(String[] args) {
         if (StartupHelper.startNewJvmIfRequired()) return; // This handles macOS support and helps on Windows.
         WebRTCClients.FACTORY = new DesktopWebRTCFactory();
-        createApplication();
-    }
-
-    private static Lwjgl3Application createApplication() {
-        return new Lwjgl3Application(new WebRtcChat(new DesktopSignalClient()), getDefaultConfiguration());
+        new Lwjgl3Application(new WebRtcChat(), getDefaultConfiguration());
     }
 
     private static Lwjgl3ApplicationConfiguration getDefaultConfiguration() {

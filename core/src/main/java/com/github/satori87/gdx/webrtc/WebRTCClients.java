@@ -27,10 +27,19 @@ package com.github.satori87.gdx.webrtc;
  * config.signalingServerUrl = "ws://myserver.com:9090";
  * WebRTCClient client = WebRTCClients.newClient(config, myListener);
  * client.connect();
+ *
+ * // Or use the high-level client/server API:
+ * WebRTCServer server = WebRTCClients.newServer(config, serverListener);
+ * server.start();
+ *
+ * WebRTCGameClient gameClient = WebRTCClients.newGameClient(config, clientListener);
+ * gameClient.connect();
  * </pre>
  *
  * @see WebRTCFactory
  * @see WebRTCClient
+ * @see WebRTCServer
+ * @see WebRTCGameClient
  */
 public class WebRTCClients {
 
@@ -61,5 +70,49 @@ public class WebRTCClients {
                 + "or the platform equivalent before use.");
         }
         return FACTORY.createClient(config, listener);
+    }
+
+    /**
+     * Creates a new {@link WebRTCServer} for client/server communication.
+     *
+     * <p>The server wraps a {@link WebRTCClient} internally and automatically
+     * connects to all peers that join the signaling server. Call
+     * {@link WebRTCServer#start()} to begin listening.</p>
+     *
+     * @param config   the WebRTC and signaling configuration
+     * @param listener the listener for server events
+     * @return a new, unstarted WebRTC server
+     * @throws IllegalStateException if {@link #FACTORY} has not been set
+     */
+    public static WebRTCServer newServer(WebRTCConfiguration config, WebRTCServerListener listener) {
+        if (FACTORY == null) {
+            throw new IllegalStateException(
+                "WebRTCClients.FACTORY is not set. "
+                + "Call WebRTCClients.FACTORY = new DesktopWebRTCFactory() "
+                + "or the platform equivalent before use.");
+        }
+        return new WebRTCServer(config, listener);
+    }
+
+    /**
+     * Creates a new {@link WebRTCGameClient} for client/server communication.
+     *
+     * <p>The client wraps a {@link WebRTCClient} internally and waits for the
+     * server to initiate the peer-to-peer connection. Call
+     * {@link WebRTCGameClient#connect()} to connect to signaling.</p>
+     *
+     * @param config   the WebRTC and signaling configuration
+     * @param listener the listener for client events
+     * @return a new, unconnected game client
+     * @throws IllegalStateException if {@link #FACTORY} has not been set
+     */
+    public static WebRTCGameClient newGameClient(WebRTCConfiguration config, WebRTCGameClientListener listener) {
+        if (FACTORY == null) {
+            throw new IllegalStateException(
+                "WebRTCClients.FACTORY is not set. "
+                + "Call WebRTCClients.FACTORY = new DesktopWebRTCFactory() "
+                + "or the platform equivalent before use.");
+        }
+        return new WebRTCGameClient(config, listener);
     }
 }

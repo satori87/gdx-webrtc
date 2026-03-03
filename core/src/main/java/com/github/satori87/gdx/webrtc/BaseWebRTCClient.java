@@ -100,6 +100,9 @@ public class BaseWebRTCClient implements WebRTCClient {
         /** Handle for the scheduled ICE restart timer on FAILED (exponential backoff). */
         Object failedTimerHandle;
 
+        /** Whether a server-reflexive (srflx) ICE candidate was observed. */
+        boolean sawSrflx;
+
         /**
          * Creates a new peer state for the given remote peer ID.
          *
@@ -529,6 +532,11 @@ public class BaseWebRTCClient implements WebRTCClient {
             peer.iceRestartAttempts = 0;
             peer.cancelTimers();
 
+            if (!peer.sawSrflx) {
+                log("WARNING: No server-reflexive candidates for peer "
+                        + peer.peerId + " — STUN servers may be unreachable");
+            }
+
             if (peer.reliableChannel != null
                     && !pcProvider.isChannelOpen(peer.reliableChannel)) {
                 log("ICE recovered but reliable channel is not open — disconnecting");
@@ -630,6 +638,9 @@ public class BaseWebRTCClient implements WebRTCClient {
                                              final DataChannelEventHandler dcHandler) {
         return new PeerEventHandler() {
             public void onIceCandidate(String candidateJson) {
+                if (candidateJson != null && candidateJson.contains("srflx")) {
+                    peer.sawSrflx = true;
+                }
                 SignalMessage ice = new SignalMessage(
                         SignalMessage.TYPE_ICE, localId, peer.peerId, candidateJson);
                 signalingProvider.send(ice);

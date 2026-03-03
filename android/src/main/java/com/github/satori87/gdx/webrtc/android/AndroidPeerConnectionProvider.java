@@ -593,7 +593,10 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
     private static PeerConnection.RTCConfiguration buildRtcConfig(WebRTCConfiguration config) {
         List<PeerConnection.IceServer> iceServers = new ArrayList<PeerConnection.IceServer>();
 
-        iceServers.add(PeerConnection.IceServer.builder(config.stunServer).createIceServer());
+        String[] stunUrls = config.stunServers != null ? config.stunServers : new String[] { config.stunServer };
+        for (int i = 0; i < stunUrls.length; i++) {
+            iceServers.add(PeerConnection.IceServer.builder(stunUrls[i]).createIceServer());
+        }
 
         if (config.turnServer != null && !config.turnServer.isEmpty()) {
             PeerConnection.IceServer.Builder turnBuilder =

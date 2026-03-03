@@ -14,7 +14,7 @@ public class IOSLauncher extends IOSApplication.Delegate {
     protected IOSApplication createApplication() {
         IOSApplicationConfiguration config = new IOSApplicationConfiguration();
         WebRTCClients.FACTORY = new IOSWebRTCFactory();
-        return new IOSApplication(new WebRtcChat(new IOSSignalClient()), config);
+        return new IOSApplication(new WebRtcChat(), config);
     }
 
     public static void main(String[] argv) {

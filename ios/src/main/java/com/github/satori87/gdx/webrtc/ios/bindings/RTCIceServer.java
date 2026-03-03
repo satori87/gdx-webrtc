@@ -63,6 +63,22 @@ public class RTCIceServer extends NSObject {
     }
 
     /**
+     * Creates a STUN ICE server with multiple URLs (no authentication).
+     *
+     * @param urls the STUN server URLs
+     * @return a new ICE server instance
+     */
+    public static RTCIceServer create(String[] urls) {
+        RTCIceServer server = new RTCIceServer();
+        NSString[] nsStrings = new NSString[urls.length];
+        for (int i = 0; i < urls.length; i++) {
+            nsStrings[i] = new NSString(urls[i]);
+        }
+        server.initWithURLStrings(new NSArray<NSString>(nsStrings));
+        return server;
+    }
+
+    /**
      * Creates a TURN ICE server with the given URL and authentication credentials.
      *
      * @param url        the TURN server URL (e.g. "turn:your-server:3478")

@@ -108,6 +108,9 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
         /** Handle for the scheduled ICE restart timer on FAILED. */
         Object failedTimerHandle;
 
+        /** Whether a server-reflexive (srflx) ICE candidate was observed. */
+        boolean sawSrflx;
+
         /**
          * Creates a new peer state for the given connection ID.
          *
@@ -336,6 +339,11 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
             peer.iceRestartAttempts = 0;
             cancelTimers(peer);
 
+            if (!peer.sawSrflx) {
+                log("WARNING: No server-reflexive candidates for peer "
+                        + peer.connId + " — STUN servers may be unreachable");
+            }
+
             if (peer.reliableChannel != null
                     && !pcProvider.isChannelOpen(peer.reliableChannel)) {
                 log("Peer " + peer.connId
@@ -476,6 +484,9 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
             final SignalCallback callback) {
         return new PeerEventHandler() {
             public void onIceCandidate(String candidateJson) {
+                if (candidateJson != null && candidateJson.contains("srflx")) {
+                    peer.sawSrflx = true;
+                }
                 callback.onIceCandidate(peer.connId, candidateJson);
             }
 
@@ -544,6 +555,7 @@ public class BaseWebRTCServerTransport implements WebRTCServerTransport {
         }
         WebRTCConfiguration effective = new WebRTCConfiguration();
         effective.stunServer = config.stunServer;
+        effective.stunServers = config.stunServers;
         effective.turnServer = turnUrl;
         effective.turnUsername = turnUsername;
         effective.turnPassword = turnPassword;

@@ -14,6 +14,6 @@ public class AndroidLauncher extends AndroidApplication {
         AndroidApplicationConfiguration config = new AndroidApplicationConfiguration();
         config.useImmersiveMode = true;
         WebRTCClients.FACTORY = new AndroidWebRTCFactory(this);
-        initialize(new WebRtcChat(new AndroidSignalClient()), config);
+        initialize(new WebRtcChat(), config);
     }
 }

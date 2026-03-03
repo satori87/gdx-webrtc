@@ -65,6 +65,16 @@ public class WebRTCConfiguration {
     public static final int DEFAULT_UNRELIABLE_MAX_RETRANSMITS = 0;
 
     /**
+     * Default STUN server URLs for NAT traversal, queried simultaneously for redundancy.
+     * Includes Google primary, Google secondary, and Cloudflare public STUN servers.
+     */
+    public static final String[] DEFAULT_STUN_SERVERS = new String[] {
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun.cloudflare.com:3478"
+    };
+
+    /**
      * URL of the signaling server WebSocket endpoint.
      * Required. Example: {@code "ws://localhost:9090"} or {@code "wss://myserver.com:9090"}.
      */
@@ -73,8 +83,21 @@ public class WebRTCConfiguration {
     /**
      * STUN server URL used for NAT traversal and public IP discovery.
      * Default: {@code "stun:stun.l.google.com:19302"} (Google's public STUN server).
+     *
+     * @deprecated Use {@link #stunServers} instead for multi-server redundancy.
      */
     public String stunServer = "stun:stun.l.google.com:19302";
+
+    /**
+     * STUN server URLs used for NAT traversal and public IP discovery.
+     * Multiple servers provide redundancy — WebRTC queries all simultaneously
+     * during ICE gathering, so if one is down the others still respond.
+     *
+     * <p>Default: Google primary, Google secondary, and Cloudflare public STUN servers.</p>
+     *
+     * @see #DEFAULT_STUN_SERVERS
+     */
+    public String[] stunServers = DEFAULT_STUN_SERVERS;
 
     /**
      * Optional TURN server URL for relaying traffic when direct peer-to-peer
@@ -175,4 +198,14 @@ public class WebRTCConfiguration {
 
     /** @param unreliableMaxRetransmits the maxRetransmits value for the unreliable data channel */
     public void setUnreliableMaxRetransmits(int unreliableMaxRetransmits) { this.unreliableMaxRetransmits = unreliableMaxRetransmits; }
+
+    /**
+     * Convenience method to set a single custom STUN server, replacing the default list.
+     *
+     * @param url the STUN server URL (e.g. {@code "stun:stun.example.com:3478"})
+     */
+    public void setStunServer(String url) {
+        this.stunServer = url;
+        this.stunServers = new String[] { url };
+    }
 }

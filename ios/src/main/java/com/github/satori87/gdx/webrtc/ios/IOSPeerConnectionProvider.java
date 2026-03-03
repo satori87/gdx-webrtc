@@ -268,7 +268,8 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
     private static RTCConfiguration buildRtcConfig(WebRTCConfiguration config) {
         RTCConfiguration rtcConfig = RTCConfiguration.create();
 
-        RTCIceServer stunServer = RTCIceServer.create(config.stunServer);
+        String[] stunUrls = config.stunServers != null ? config.stunServers : new String[] { config.stunServer };
+        RTCIceServer stunServer = RTCIceServer.create(stunUrls);
 
         if (config.turnServer != null && !config.turnServer.isEmpty()) {
             RTCIceServer turnServer = RTCIceServer.create(config.turnServer,

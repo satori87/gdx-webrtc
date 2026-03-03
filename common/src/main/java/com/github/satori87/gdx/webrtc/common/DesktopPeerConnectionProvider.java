@@ -445,7 +445,10 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
         RTCConfiguration rtcConfig = new RTCConfiguration();
 
         RTCIceServer stunServer = new RTCIceServer();
-        stunServer.urls.add(config.stunServer);
+        String[] stunUrls = config.stunServers != null ? config.stunServers : new String[] { config.stunServer };
+        for (int i = 0; i < stunUrls.length; i++) {
+            stunServer.urls.add(stunUrls[i]);
+        }
         rtcConfig.iceServers.add(stunServer);
 
         if (config.turnServer != null && !config.turnServer.isEmpty()) {

@@ -16,14 +16,19 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
+import com.github.satori87.gdx.webrtc.WebRTCClients;
+import com.github.satori87.gdx.webrtc.WebRTCConfiguration;
+import com.github.satori87.gdx.webrtc.WebRTCGameClient;
+import com.github.satori87.gdx.webrtc.WebRTCGameClientListener;
+import com.github.satori87.gdx.webrtc.WebRTCServer;
+import com.github.satori87.gdx.webrtc.WebRTCServerListener;
 
-public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.ChatCallback {
+public class WebRtcChat extends ApplicationAdapter {
 
-    private final ChatSignalClient signalClient;
     private Stage stage;
     private Skin skin;
-    private ConnectionManager connectionManager;
-    private EmbeddedChatServer embeddedServer;
+    private WebRTCServer server;
+    private WebRTCGameClient gameClient;
     private boolean hosting;
 
     private enum AppState { CONNECT, CONNECTING, CHATTING }
@@ -34,10 +39,6 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
     private ScrollPane scrollPane;
     private TextField inputField;
     private StringBuilder messageBuffer = new StringBuilder();
-
-    public WebRtcChat(ChatSignalClient signalClient) {
-        this.signalClient = signalClient;
-    }
 
     @Override
     public void create() {
@@ -57,7 +58,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         root.center();
         stage.addActor(root);
 
-        Label title = new Label("WebRTC Chat (Client/Server)", skin);
+        Label title = new Label("WebRTC Chat", skin);
         title.setFontScale(2f);
         root.add(title).padBottom(40).row();
 
@@ -71,13 +72,13 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         root.add(addressRow).padBottom(20).row();
 
         Table buttonRow = new Table();
-        TextButton hostButton = new TextButton("Host Server", skin);
+        TextButton hostButton = new TextButton("Host", skin);
         hostButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 String ip = ipField.getText().trim();
                 if (ip.isEmpty()) ip = "localhost";
-                startHosting(ip);
+                startAsServer(ip);
             }
         });
         TextButton connectButton = new TextButton("Connect", skin);
@@ -86,7 +87,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
             public void clicked(InputEvent event, float x, float y) {
                 String ip = ipField.getText().trim();
                 if (ip.isEmpty()) ip = "localhost";
-                startConnection(ip);
+                startAsClient(ip);
             }
         });
         buttonRow.add(hostButton).width(150).height(50).padRight(10);
@@ -94,33 +95,109 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         root.add(buttonRow).row();
     }
 
-    private void startHosting(String ip) {
+    private void startAsServer(String ip) {
         hosting = true;
-        embeddedServer = new EmbeddedChatServer(signalClient, new EmbeddedChatServer.HostCallback() {
-            public void onStarted() {
-                buildChatUI();
+        WebRTCConfiguration config = new WebRTCConfiguration();
+        config.signalingServerUrl = "ws://" + ip + ":9090";
+
+        server = WebRTCClients.newServer(config, new WebRTCServerListener() {
+            public void onStarted(final int serverId) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        buildChatUI();
+                    }
+                });
             }
 
-            public void onMessageReceived(String message) {
-                if (state == AppState.CHATTING) {
-                    appendMessage(message);
-                }
+            public void onClientConnected(final int clientId) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        appendMessage("-- Client " + clientId + " connected --");
+                    }
+                });
             }
 
-            public void onError(String error) {
-                if (statusLabel != null) {
-                    statusLabel.setText("Error: " + error);
-                    statusLabel.setColor(Color.RED);
-                }
+            public void onClientDisconnected(final int clientId) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        appendMessage("-- Client " + clientId + " disconnected --");
+                    }
+                });
+            }
+
+            public void onClientMessage(final int clientId, final byte[] data, boolean reliable) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        String text = new String(data);
+                        appendMessage("Client " + clientId + ": " + text);
+                        // Relay to all other clients
+                        byte[] relayMsg = ("Client " + clientId + ": " + text).getBytes();
+                        server.broadcastReliableExcept(clientId, relayMsg);
+                    }
+                });
+            }
+
+            public void onError(final String error) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        if (statusLabel != null) {
+                            statusLabel.setText("Error: " + error);
+                            statusLabel.setColor(Color.RED);
+                        }
+                    }
+                });
             }
         });
-        embeddedServer.start("ws://" + ip + ":9090");
-        buildConnectingUI("Connecting to signal server " + ip + ":9090...");
+
+        server.start();
+        buildConnectingUI("Starting server on " + ip + ":9090...");
     }
 
-    private void startConnection(String ip) {
-        connectionManager = new ConnectionManager(signalClient, this);
-        connectionManager.connect("ws://" + ip + ":9090");
+    private void startAsClient(String ip) {
+        hosting = false;
+        WebRTCConfiguration config = new WebRTCConfiguration();
+        config.signalingServerUrl = "ws://" + ip + ":9090";
+
+        gameClient = WebRTCClients.newGameClient(config, new WebRTCGameClientListener() {
+            public void onConnected() {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        buildChatUI();
+                        appendMessage("-- Connected to server --");
+                    }
+                });
+            }
+
+            public void onDisconnected() {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        appendMessage("-- Disconnected from server --");
+                    }
+                });
+            }
+
+            public void onMessage(final byte[] data, boolean reliable) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        String text = new String(data);
+                        appendMessage(text);
+                    }
+                });
+            }
+
+            public void onError(final String error) {
+                Gdx.app.postRunnable(new Runnable() {
+                    public void run() {
+                        if (statusLabel != null) {
+                            statusLabel.setText("Error: " + error);
+                            statusLabel.setColor(Color.RED);
+                        }
+                    }
+                });
+            }
+        });
+
+        gameClient.connect();
         buildConnectingUI("Connecting to " + ip + ":9090...");
     }
 
@@ -140,15 +217,7 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         backButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                if (hosting && embeddedServer != null) {
-                    embeddedServer.stop();
-                    embeddedServer = null;
-                }
-                if (connectionManager != null) {
-                    connectionManager.disconnect();
-                    connectionManager = null;
-                }
-                buildConnectUI();
+                disconnectAndReset();
             }
         });
         root.add(backButton).width(100).height(40);
@@ -164,11 +233,13 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         root.pad(10);
         stage.addActor(root);
 
+        String label;
         if (hosting) {
-            statusLabel = new Label("Hosting — waiting for clients", skin);
+            label = "Hosting (ID: " + server.getServerId() + ")";
         } else {
-            statusLabel = new Label("Connected to server", skin);
+            label = "Connected to server";
         }
+        statusLabel = new Label(label, skin);
         statusLabel.setColor(Color.GREEN);
         root.add(statusLabel).expandX().fillX().padBottom(5).row();
 
@@ -203,19 +274,11 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
             }
         });
 
-        TextButton disconnectButton = new TextButton(hosting ? "Stop" : "Disconnect", skin);
+        TextButton disconnectButton = new TextButton("Disconnect", skin);
         disconnectButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                if (hosting && embeddedServer != null) {
-                    embeddedServer.stop();
-                    embeddedServer = null;
-                }
-                if (connectionManager != null) {
-                    connectionManager.disconnect();
-                    connectionManager = null;
-                }
-                buildConnectUI();
+                disconnectAndReset();
             }
         });
 
@@ -232,14 +295,15 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
         if (text.isEmpty()) return;
 
         if (hosting) {
-            if (embeddedServer != null && embeddedServer.isRunning()) {
-                embeddedServer.broadcastChat(text);
-            }
+            // Server broadcasts "Host: text" to all clients
+            byte[] broadcastMsg = ("Host: " + text).getBytes();
+            server.broadcastReliable(broadcastMsg);
+            appendMessage("You (Host): " + text);
         } else {
-            if (connectionManager != null && connectionManager.isConnected()) {
-                connectionManager.sendMessage(text);
-                appendMessage("You: " + text);
-            }
+            // Client sends raw text to server
+            byte[] data = text.getBytes();
+            gameClient.sendReliable(data);
+            appendMessage("You: " + text);
         }
 
         inputField.setText("");
@@ -251,9 +315,23 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
             messageBuffer.append("\n");
         }
         messageBuffer.append(message);
-        messageLog.setText(messageBuffer.toString());
-        scrollPane.layout();
-        scrollPane.setScrollPercentY(1f);
+        if (messageLog != null) {
+            messageLog.setText(messageBuffer.toString());
+            scrollPane.layout();
+            scrollPane.setScrollPercentY(1f);
+        }
+    }
+
+    private void disconnectAndReset() {
+        if (server != null) {
+            server.stop();
+            server = null;
+        }
+        if (gameClient != null) {
+            gameClient.disconnect();
+            gameClient = null;
+        }
+        buildConnectUI();
     }
 
     @Override
@@ -270,44 +348,13 @@ public class WebRtcChat extends ApplicationAdapter implements ConnectionManager.
 
     @Override
     public void dispose() {
-        if (embeddedServer != null) {
-            embeddedServer.stop();
+        if (server != null) {
+            server.stop();
         }
-        if (connectionManager != null) {
-            connectionManager.disconnect();
+        if (gameClient != null) {
+            gameClient.disconnect();
         }
         stage.dispose();
         skin.dispose();
-    }
-
-    // --- ConnectionManager.ChatCallback (client mode) ---
-
-    @Override
-    public void onConnected() {
-        buildChatUI();
-    }
-
-    @Override
-    public void onDisconnected() {
-        if (state == AppState.CHATTING) {
-            appendMessage("-- Disconnected from server --");
-            statusLabel.setText("Disconnected");
-            statusLabel.setColor(Color.RED);
-        }
-    }
-
-    @Override
-    public void onMessageReceived(String message) {
-        if (state == AppState.CHATTING) {
-            appendMessage(message);
-        }
-    }
-
-    @Override
-    public void onError(String error) {
-        if (statusLabel != null) {
-            statusLabel.setText("Error: " + error);
-            statusLabel.setColor(Color.RED);
-        }
     }
 }

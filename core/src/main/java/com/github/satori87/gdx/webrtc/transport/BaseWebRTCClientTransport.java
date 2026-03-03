@@ -78,6 +78,9 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
     /** Handle for the scheduled ICE restart timer on FAILED (exponential backoff). */
     private Object failedTimerHandle;
 
+    /** Whether a server-reflexive (srflx) ICE candidate was observed. */
+    private boolean sawSrflx;
+
     /**
      * Creates a new client transport with the given strategy implementations.
      *
@@ -225,6 +228,10 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
             iceRestartAttempts = 0;
             cancelTimers();
 
+            if (!sawSrflx) {
+                log("WARNING: No server-reflexive candidates — STUN servers may be unreachable");
+            }
+
             if (reliableChannel != null
                     && !pcProvider.isChannelOpen(reliableChannel)) {
                 log("ICE recovered but reliable channel is not open — disconnecting");
@@ -316,6 +323,7 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
         iceClosedOrFailed = false;
         disconnectedAtMs = 0;
         iceRestartAttempts = 0;
+        sawSrflx = false;
         if (peerConnection != null) {
             try {
                 pcProvider.closePeerConnection(peerConnection);
@@ -353,6 +361,9 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
             final SignalCallback callback) {
         return new PeerEventHandler() {
             public void onIceCandidate(String candidateJson) {
+                if (candidateJson != null && candidateJson.contains("srflx")) {
+                    sawSrflx = true;
+                }
                 callback.onIceCandidate(candidateJson);
             }
 

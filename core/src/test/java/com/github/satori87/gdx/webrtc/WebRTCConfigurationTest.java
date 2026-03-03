@@ -66,4 +66,28 @@ class WebRTCConfigurationTest {
         assertNull(config.turnPassword);
         assertFalse(config.forceRelay);
     }
+
+    @Test
+    void defaultStunServersHasThreeEntries() {
+        String[] defaults = WebRTCConfiguration.DEFAULT_STUN_SERVERS;
+        assertEquals(3, defaults.length);
+        assertEquals("stun:stun.l.google.com:19302", defaults[0]);
+        assertEquals("stun:stun1.l.google.com:19302", defaults[1]);
+        assertEquals("stun:stun.cloudflare.com:3478", defaults[2]);
+    }
+
+    @Test
+    void stunServersDefaultMatchesConstant() {
+        WebRTCConfiguration config = new WebRTCConfiguration();
+        assertArrayEquals(WebRTCConfiguration.DEFAULT_STUN_SERVERS, config.stunServers);
+    }
+
+    @Test
+    void setStunServerUpdatesBothFields() {
+        WebRTCConfiguration config = new WebRTCConfiguration();
+        config.setStunServer("stun:custom.example.com:3478");
+        assertEquals("stun:custom.example.com:3478", config.stunServer);
+        assertEquals(1, config.stunServers.length);
+        assertEquals("stun:custom.example.com:3478", config.stunServers[0]);
+    }
 }

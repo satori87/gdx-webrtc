@@ -132,6 +132,7 @@ public class WebRTCGameClient implements ClientTransport {
         return peer != null && peer.isConnected();
     }
 
+    /** {@inheritDoc} */
     public void setListener(TransportListener listener) {
         this.transportListener = listener;
     }

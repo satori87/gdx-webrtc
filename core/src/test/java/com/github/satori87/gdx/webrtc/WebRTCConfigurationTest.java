@@ -83,6 +83,19 @@ class WebRTCConfigurationTest {
     }
 
     @Test
+    void roomDefaultsToNull() {
+        WebRTCConfiguration config = new WebRTCConfiguration();
+        assertNull(config.room);
+    }
+
+    @Test
+    void roomIsAssignable() {
+        WebRTCConfiguration config = new WebRTCConfiguration();
+        config.room = "my-game-room";
+        assertEquals("my-game-room", config.room);
+    }
+
+    @Test
     void setStunServerUpdatesBothFields() {
         WebRTCConfiguration config = new WebRTCConfiguration();
         config.setStunServer("stun:custom.example.com:3478");

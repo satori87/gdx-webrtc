@@ -217,22 +217,27 @@ public class WebRTCServer implements ServerTransport {
 
     // --- ServerTransport interface ---
 
+    /** {@inheritDoc} */
     public void sendReliable(int connId, byte[] data) {
         sendToClient(connId, data);
     }
 
+    /** {@inheritDoc} */
     public void sendUnreliable(int connId, byte[] data) {
         sendToClientUnreliable(connId, data);
     }
 
+    /** {@inheritDoc} */
     public void disconnect(int connId) {
         disconnectClient(connId);
     }
 
+    /** {@inheritDoc} */
     public int getConnectionCount() {
         return clients.size();
     }
 
+    /** {@inheritDoc} */
     public void setListener(ServerTransportListener listener) {
         this.transportListener = listener;
     }

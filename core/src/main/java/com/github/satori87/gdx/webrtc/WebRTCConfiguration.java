@@ -124,6 +124,15 @@ public class WebRTCConfiguration {
     public boolean forceRelay = false;
 
     /**
+     * Optional room ID for scoping signaling to a subset of peers.
+     * When set, the client appends {@code ?room=<room>} to the signaling URL.
+     * The signaling server scopes PEER_JOINED/PEER_LEFT broadcasts and message
+     * relay to peers in the same room. Default: {@code null} (global room,
+     * backward compatible with servers that don't support rooms).
+     */
+    public String room = null;
+
+    /**
      * Delay in milliseconds before restarting ICE after a temporary disconnect
      * (ICE DISCONNECTED state). This gives the connection a chance to recover
      * naturally before triggering an explicit ICE restart.

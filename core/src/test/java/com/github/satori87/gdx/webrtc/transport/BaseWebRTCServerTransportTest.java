@@ -6,6 +6,9 @@ import com.github.satori87.gdx.webrtc.WebRTCConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.github.satori87.gdx.webrtc.DataChannelEventHandler;
+
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -421,7 +424,7 @@ class BaseWebRTCServerTransportTest {
         int id1 = transport.createPeerForOffer(cb);
         pc.lastDcHandler.onReliableOpen();
         // Save dc handler for peer1
-        com.github.satori87.gdx.webrtc.DataChannelEventHandler dc1 = pc.lastDcHandler;
+        DataChannelEventHandler dc1 = pc.lastDcHandler;
 
         int id2 = transport.createPeerForOffer(cb);
         pc.lastDcHandler.onReliableOpen();
@@ -487,7 +490,7 @@ class BaseWebRTCServerTransportTest {
 
     // --- Helpers ---
 
-    private int countCalls(java.util.List<String> calls, String target) {
+    private int countCalls(List<String> calls, String target) {
         int count = 0;
         for (int i = 0; i < calls.size(); i++) {
             if (target.equals(calls.get(i))) {

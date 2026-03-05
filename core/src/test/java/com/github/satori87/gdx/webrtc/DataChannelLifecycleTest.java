@@ -3,6 +3,7 @@ package com.github.satori87.gdx.webrtc;
 import com.github.satori87.gdx.webrtc.TestHelpers.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import static org.junit.jupiter.api.Assertions.*;
 
 class DataChannelLifecycleTest {
@@ -87,7 +88,7 @@ class DataChannelLifecycleTest {
     @Test
     void messageWithNullListenerDoesNotThrow() {
         client.setListener(null);
-        assertDoesNotThrow(new org.junit.jupiter.api.function.Executable() {
+        assertDoesNotThrow(new Executable() {
             public void execute() {
                 pc.lastDcHandler.onMessage(new byte[]{1}, true);
             }
@@ -97,7 +98,7 @@ class DataChannelLifecycleTest {
     @Test
     void reliableOpenWithNullListenerDoesNotThrow() {
         client.setListener(null);
-        assertDoesNotThrow(new org.junit.jupiter.api.function.Executable() {
+        assertDoesNotThrow(new Executable() {
             public void execute() {
                 pc.lastDcHandler.onReliableOpen();
             }
@@ -109,7 +110,7 @@ class DataChannelLifecycleTest {
     void reliableCloseWithNullListenerDoesNotThrow() {
         client.setListener(null);
         peer.connected = true;
-        assertDoesNotThrow(new org.junit.jupiter.api.function.Executable() {
+        assertDoesNotThrow(new Executable() {
             public void execute() {
                 pc.lastDcHandler.onReliableClose();
             }

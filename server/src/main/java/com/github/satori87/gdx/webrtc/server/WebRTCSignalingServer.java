@@ -77,6 +77,10 @@ public class WebRTCSignalingServer {
     private final Map<Integer, SignalingConnection> peerToConn =
             new ConcurrentHashMap<Integer, SignalingConnection>();
 
+    /** Maps each connection to its room (empty string = default room). */
+    private final Map<SignalingConnection, String> connToRoom =
+            new ConcurrentHashMap<SignalingConnection, String>();
+
     /**
      * Creates a new signaling server with the given configuration.
      * The server does not start until {@link #start()} is called.
@@ -112,7 +116,8 @@ public class WebRTCSignalingServer {
         wsServer = new WebSocketServer(new InetSocketAddress(config.port)) {
             @Override
             public void onOpen(WebSocket conn, ClientHandshake handshake) {
-                handleOpen(new WebSocketSignalingConnection(conn));
+                String room = extractRoom(handshake.getResourceDescriptor());
+                handleOpen(new WebSocketSignalingConnection(conn), room);
             }
 
             @Override
@@ -169,27 +174,30 @@ public class WebRTCSignalingServer {
 
     /**
      * Handles a new client connection: assigns a peer ID, sends WELCOME,
-     * notifies the new peer about existing peers, and broadcasts PEER_JOINED
-     * to all existing peers.
+     * notifies the new peer about existing peers in the same room, and
+     * broadcasts PEER_JOINED to all existing peers in the same room.
      *
      * @param conn the new connection
+     * @param room the room this connection belongs to (empty string for default room)
      */
-    void handleOpen(SignalingConnection conn) {
+    void handleOpen(SignalingConnection conn, String room) {
         int peerId = nextPeerId.getAndIncrement();
         connToPeer.put(conn, peerId);
         peerToConn.put(peerId, conn);
+        connToRoom.put(conn, room);
 
-        System.out.println(TAG + "Peer " + peerId + " connected from " + conn.getRemoteSocketAddress());
+        System.out.println(TAG + "Peer " + peerId + " connected from " + conn.getRemoteSocketAddress()
+                + (room.isEmpty() ? "" : " (room: " + room + ")"));
 
         // Send WELCOME with assigned peer ID
         SignalMessage welcome = new SignalMessage(
                 SignalMessage.TYPE_WELCOME, 0, peerId, String.valueOf(peerId));
         conn.send(welcome.toJson());
 
-        // Notify the new peer about every already-connected peer
+        // Notify the new peer about every already-connected peer in the same room
         for (Map.Entry<SignalingConnection, Integer> entry : connToPeer.entrySet()) {
             int existingId = entry.getValue();
-            if (existingId != peerId) {
+            if (existingId != peerId && room.equals(connToRoom.get(entry.getKey()))) {
                 try {
                     SignalMessage existing = new SignalMessage(
                             SignalMessage.TYPE_PEER_JOINED, existingId, peerId,
@@ -201,12 +209,12 @@ public class WebRTCSignalingServer {
             }
         }
 
-        // Broadcast PEER_JOINED to all other connected peers
+        // Broadcast PEER_JOINED to all other connected peers in the same room
         SignalMessage joined = new SignalMessage(
                 SignalMessage.TYPE_PEER_JOINED, peerId, 0, String.valueOf(peerId));
         String joinedJson = joined.toJson();
         for (Map.Entry<SignalingConnection, Integer> entry : connToPeer.entrySet()) {
-            if (entry.getValue() != peerId) {
+            if (entry.getValue() != peerId && room.equals(connToRoom.get(entry.getKey()))) {
                 try {
                     entry.getKey().send(joinedJson);
                 } catch (Exception e) {
@@ -224,19 +232,23 @@ public class WebRTCSignalingServer {
      */
     void handleClose(SignalingConnection conn) {
         Integer peerId = connToPeer.remove(conn);
+        String room = connToRoom.remove(conn);
         if (peerId != null) {
             peerToConn.remove(peerId);
             System.out.println(TAG + "Peer " + peerId + " disconnected");
 
-            // Broadcast PEER_LEFT to remaining peers
+            // Broadcast PEER_LEFT to remaining peers in the same room
+            if (room == null) room = "";
             SignalMessage left = new SignalMessage(
                     SignalMessage.TYPE_PEER_LEFT, peerId, 0, String.valueOf(peerId));
             String leftJson = left.toJson();
             for (Map.Entry<SignalingConnection, Integer> entry : connToPeer.entrySet()) {
-                try {
-                    entry.getKey().send(leftJson);
-                } catch (Exception e) {
-                    // Ignore send failures
+                if (room.equals(connToRoom.get(entry.getKey()))) {
+                    try {
+                        entry.getKey().send(leftJson);
+                    } catch (Exception e) {
+                        // Ignore send failures
+                    }
                 }
             }
         }
@@ -260,11 +272,15 @@ public class WebRTCSignalingServer {
         // Stamp source
         msg.source = sourcePeerId;
 
+        String sourceRoom = connToRoom.get(conn);
+        if (sourceRoom == null) sourceRoom = "";
+
         if (msg.type == SignalMessage.TYPE_PEER_LIST) {
-            // Respond with comma-separated list of connected peer IDs
+            // Respond with comma-separated list of connected peer IDs in the same room
             StringBuilder sb = new StringBuilder();
-            for (Integer id : peerToConn.keySet()) {
-                if (!id.equals(sourcePeerId)) {
+            for (Map.Entry<SignalingConnection, Integer> entry : connToPeer.entrySet()) {
+                int id = entry.getValue();
+                if (id != sourcePeerId && sourceRoom.equals(connToRoom.get(entry.getKey()))) {
                     if (sb.length() > 0) sb.append(",");
                     sb.append(id);
                 }
@@ -275,10 +291,18 @@ public class WebRTCSignalingServer {
             return;
         }
 
-        // Relay to target peer
+        // Relay to target peer (only if in the same room)
         int targetId = msg.target;
         SignalingConnection targetConn = peerToConn.get(targetId);
         if (targetConn != null && targetConn.isOpen()) {
+            String targetRoom = connToRoom.get(targetConn);
+            if (targetRoom == null) targetRoom = "";
+            if (!sourceRoom.equals(targetRoom)) {
+                SignalMessage err = new SignalMessage(SignalMessage.TYPE_ERROR, 0, sourcePeerId,
+                        "Peer " + targetId + " not in same room");
+                conn.send(err.toJson());
+                return;
+            }
             targetConn.send(msg.toJson());
         } else {
             // Target not found
@@ -315,6 +339,39 @@ public class WebRTCSignalingServer {
      */
     Map<Integer, SignalingConnection> getPeerToConn() {
         return peerToConn;
+    }
+
+    /**
+     * Returns the connection-to-room map. Package-private for testing.
+     *
+     * @return the connection-to-room map
+     */
+    Map<SignalingConnection, String> getConnToRoom() {
+        return connToRoom;
+    }
+
+    // --- Utility ---
+
+    /**
+     * Extracts the room name from a WebSocket resource descriptor.
+     * Looks for a {@code room} query parameter (e.g. {@code /?room=myroom}).
+     * Returns an empty string if no room parameter is present, making
+     * all such connections share the default room.
+     *
+     * @param resourceDescriptor the resource descriptor from the WebSocket handshake
+     * @return the room name, or empty string for the default room
+     */
+    static String extractRoom(String resourceDescriptor) {
+        if (resourceDescriptor == null) return "";
+        int queryStart = resourceDescriptor.indexOf('?');
+        if (queryStart < 0) return "";
+        String query = resourceDescriptor.substring(queryStart + 1);
+        for (String param : query.split("&")) {
+            if (param.startsWith("room=")) {
+                return param.substring(5);
+            }
+        }
+        return "";
     }
 
     // --- WebSocket adapter ---

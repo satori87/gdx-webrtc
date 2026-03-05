@@ -1,5 +1,8 @@
 package com.github.satori87.gdx.webrtc;
 
+import com.github.satori87.gdx.webrtc.transport.ServerTransport;
+import com.github.satori87.gdx.webrtc.transport.ServerTransportListener;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,12 +25,13 @@ import java.util.List;
  * @see WebRTCServerListener
  * @see WebRTCClients#newServer(WebRTCConfiguration, WebRTCServerListener)
  */
-public class WebRTCServer {
+public class WebRTCServer implements ServerTransport {
 
     private final WebRTCClient client;
     private final WebRTCServerListener listener;
     private final List/*<WebRTCPeer>*/ clients = new ArrayList/*<WebRTCPeer>*/();
     private volatile boolean running;
+    private ServerTransportListener transportListener;
 
     /**
      * Creates a new server.
@@ -54,15 +58,24 @@ public class WebRTCServer {
             public void onConnected(WebRTCPeer peer) {
                 clients.add(peer);
                 WebRTCServer.this.listener.onClientConnected(peer.getId());
+                if (transportListener != null) {
+                    transportListener.onClientConnected(peer.getId());
+                }
             }
 
             public void onDisconnected(WebRTCPeer peer) {
                 clients.remove(peer);
                 WebRTCServer.this.listener.onClientDisconnected(peer.getId());
+                if (transportListener != null) {
+                    transportListener.onClientDisconnected(peer.getId());
+                }
             }
 
             public void onMessage(WebRTCPeer peer, byte[] data, boolean reliable) {
                 WebRTCServer.this.listener.onClientMessage(peer.getId(), data, reliable);
+                if (transportListener != null) {
+                    transportListener.onClientMessage(peer.getId(), data, reliable);
+                }
             }
 
             public void onError(String error) {
@@ -200,6 +213,28 @@ public class WebRTCServer {
      */
     public int getServerId() {
         return client.getLocalId();
+    }
+
+    // --- ServerTransport interface ---
+
+    public void sendReliable(int connId, byte[] data) {
+        sendToClient(connId, data);
+    }
+
+    public void sendUnreliable(int connId, byte[] data) {
+        sendToClientUnreliable(connId, data);
+    }
+
+    public void disconnect(int connId) {
+        disconnectClient(connId);
+    }
+
+    public int getConnectionCount() {
+        return clients.size();
+    }
+
+    public void setListener(ServerTransportListener listener) {
+        this.transportListener = listener;
     }
 
     private WebRTCPeer findPeer(int clientId) {

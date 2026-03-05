@@ -7,6 +7,8 @@ import com.github.satori87.gdx.webrtc.WebRTCConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -418,7 +420,7 @@ class BaseWebRTCClientTransportTest {
         pc.lastDcHandler.onReliableOpen();
     }
 
-    private int countCalls(java.util.List<String> calls, String target) {
+    private int countCalls(List<String> calls, String target) {
         int count = 0;
         for (int i = 0; i < calls.size(); i++) {
             if (target.equals(calls.get(i))) {

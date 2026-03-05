@@ -3,6 +3,7 @@ package com.github.satori87.gdx.webrtc;
 import com.github.satori87.gdx.webrtc.TestHelpers.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PeerStateTest {
@@ -161,7 +162,7 @@ class PeerStateTest {
     @Test
     void closeWithNullPeerConnectionDoesNotThrow() {
         peer.peerConnection = null;
-        assertDoesNotThrow(new org.junit.jupiter.api.function.Executable() {
+        assertDoesNotThrow(new Executable() {
             public void execute() {
                 peer.close();
             }
@@ -188,7 +189,7 @@ class PeerStateTest {
     void cancelTimersWithNullHandlesDoesNothing() {
         peer.disconnectedTimerHandle = null;
         peer.failedTimerHandle = null;
-        assertDoesNotThrow(new org.junit.jupiter.api.function.Executable() {
+        assertDoesNotThrow(new Executable() {
             public void execute() {
                 peer.cancelTimers();
             }

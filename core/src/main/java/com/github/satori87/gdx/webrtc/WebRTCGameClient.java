@@ -1,5 +1,8 @@
 package com.github.satori87.gdx.webrtc;
 
+import com.github.satori87.gdx.webrtc.transport.ClientTransport;
+import com.github.satori87.gdx.webrtc.transport.TransportListener;
+
 /**
  * High-level client for client/server WebRTC communication.
  *
@@ -19,11 +22,12 @@ package com.github.satori87.gdx.webrtc;
  * @see WebRTCGameClientListener
  * @see WebRTCClients#newGameClient(WebRTCConfiguration, WebRTCGameClientListener)
  */
-public class WebRTCGameClient {
+public class WebRTCGameClient implements ClientTransport {
 
     private final WebRTCClient client;
     private final WebRTCGameClientListener listener;
     private volatile WebRTCPeer serverPeer;
+    private TransportListener transportListener;
 
     /**
      * Creates a new game client.
@@ -49,19 +53,31 @@ public class WebRTCGameClient {
             public void onConnected(WebRTCPeer peer) {
                 serverPeer = peer;
                 WebRTCGameClient.this.listener.onConnected();
+                if (transportListener != null) {
+                    transportListener.onConnected();
+                }
             }
 
             public void onDisconnected(WebRTCPeer peer) {
                 serverPeer = null;
                 WebRTCGameClient.this.listener.onDisconnected();
+                if (transportListener != null) {
+                    transportListener.onDisconnected();
+                }
             }
 
             public void onMessage(WebRTCPeer peer, byte[] data, boolean reliable) {
                 WebRTCGameClient.this.listener.onMessage(data, reliable);
+                if (transportListener != null) {
+                    transportListener.onMessage(data, reliable);
+                }
             }
 
             public void onError(String error) {
                 WebRTCGameClient.this.listener.onError(error);
+                if (transportListener != null) {
+                    transportListener.onError(error);
+                }
             }
         });
     }
@@ -114,5 +130,9 @@ public class WebRTCGameClient {
     public boolean isConnected() {
         WebRTCPeer peer = serverPeer;
         return peer != null && peer.isConnected();
+    }
+
+    public void setListener(TransportListener listener) {
+        this.transportListener = listener;
     }
 }

@@ -137,7 +137,25 @@ public class IOSLauncher extends IOSApplication.Delegate {
 
 ## Choosing an Architecture
 
-gdx-webrtc supports two networking architectures. Both use peer-to-peer WebRTC data channels under the hood — the difference is how your game logic is organized.
+gdx-webrtc supports three networking architectures. All use peer-to-peer WebRTC data channels under the hood — the difference is how your game logic is organized.
+
+### Client/Server with Rooms (Recommended)
+
+The recommended model for multiplayer games. A lobby or matchmaking service assigns each game session a unique room ID. The game server and its clients all join the same signaling room. The signaling server isolates rooms from each other — peers only see others in their room. Multiple game servers can share a single signaling server.
+
+```
+          Signaling Server (WebSocket)
+         /                    \
+    room=abc123            room=def456
+   /     |     \          /     |     \
+ [Host] [A]   [B]     [Host] [C]   [D]    ← isolated rooms
+   |     |     |         |     |     |
+   ←— WebRTC ——→         ←— WebRTC ——→     ← direct data channels
+```
+
+Use `WebRTCServer` + `WebRTCGameClient` with `config.room` set. The server auto-accepts all clients that join its room. Clients connect to the signaling server with the same room ID (typically received from a lobby) and the server initiates the WebRTC handshake automatically.
+
+This model scales naturally: spin up game servers on demand, each with its own room, all sharing one signaling endpoint. It works for both dedicated servers and player-hosted games.
 
 ### Fully Peer-to-Peer
 
@@ -153,11 +171,11 @@ Every peer connects to every other peer. All peers are equal — there is no aut
  [Peer B] ←——→ [Peer C]
 ```
 
-Use `WebRTCClient` (the low-level peer-to-peer API) for this model. You get callbacks for every peer that joins or leaves, and you can connect to any of them.
+Use `WebRTCClient` (the low-level peer-to-peer API) for this model. You get callbacks for every peer that joins or leaves, and you can connect to any of them. Supports rooms for isolating peer groups.
 
-### Client/Server (Player-Hosted or Dedicated)
+### Client/Server without Rooms
 
-One peer acts as the authoritative server (host). Clients connect only to the host, not to each other. The host validates input, updates game state, and broadcasts results. This is the standard model for competitive multiplayer games.
+Same as above but without room isolation — all peers share a single global signaling namespace. Simpler to set up when you only have one game server per signaling server. Just omit `config.room`.
 
 ```
           Signaling Server (WebSocket)
@@ -169,7 +187,7 @@ One peer acts as the authoritative server (host). Clients connect only to the ho
    [Host] ←——→ [Client C]
 ```
 
-Use `WebRTCServer` + `WebRTCGameClient` for this model. The server automatically connects to all joining peers. The client waits for the server to initiate the connection. The signaling server only brokers the initial handshake — all game data flows directly.
+Use `WebRTCServer` + `WebRTCGameClient` with no room set.
 
 ## API Levels
 
@@ -177,7 +195,9 @@ gdx-webrtc provides three API levels, from simplest to most flexible:
 
 ### 1. Client/Server API (`WebRTCServer` / `WebRTCGameClient`)
 
-The easiest way to build a client/server game. Uses the library's built-in signaling server. The server auto-accepts all clients.
+The easiest way to build a client/server game. Uses the library's built-in signaling server. The server auto-accepts all clients. Supports room-scoped signaling for running multiple game sessions on a shared signaling server.
+
+Both `WebRTCServer` and `WebRTCGameClient` implement `ServerTransport` and `ClientTransport` respectively, so they can plug directly into your game's networking layer.
 
 **Server side:**
 ```java
@@ -185,8 +205,9 @@ import com.github.satori87.gdx.webrtc.*;
 
 WebRTCConfiguration config = new WebRTCConfiguration();
 config.signalingServerUrl = "ws://myserver.com:9090";
+config.room = "game-session-abc123"; // optional: isolate this game session
 
-WebRTCServer server = WebRTCClients.newServer(config, new WebRTCServerListener() {
+WebRTCServer server = new WebRTCServer(config, new WebRTCServerListener() {
     public void onStarted(int serverId) {
         System.out.println("Server ready, ID: " + serverId);
     }
@@ -219,8 +240,9 @@ import com.github.satori87.gdx.webrtc.*;
 
 WebRTCConfiguration config = new WebRTCConfiguration();
 config.signalingServerUrl = "ws://myserver.com:9090";
+config.room = "game-session-abc123"; // same room as the server
 
-WebRTCGameClient client = WebRTCClients.newGameClient(config, new WebRTCGameClientListener() {
+WebRTCGameClient client = new WebRTCGameClient(config, new WebRTCGameClientListener() {
     public void onConnected() {
         System.out.println("Connected to server");
     }
@@ -242,15 +264,29 @@ client.sendReliable(data);
 client.sendUnreliable(inputData);
 ```
 
+**Signaling reconnect:** `WebRTCServer.start()` connects to signaling asynchronously. If the signaling server is not yet available (e.g., the game server starts before the lobby), you should retry in your game loop:
+
+```java
+// In your render/update loop:
+if (!server.isRunning()) {
+    if (System.currentTimeMillis() - lastRetry >= 5000) {
+        lastRetry = System.currentTimeMillis();
+        server.stop();   // clean up any half-open connection
+        server.start();  // retry
+    }
+}
+```
+
 ### 2. Peer-to-Peer API (`WebRTCClient`)
 
-Full control over which peers to connect to. Best for fully peer-to-peer games, lobbies where players choose who to connect to, or custom architectures.
+Full control over which peers to connect to. Best for fully peer-to-peer games, lobbies where players choose who to connect to, or custom architectures. Supports optional room scoping via `config.room`.
 
 ```java
 import com.github.satori87.gdx.webrtc.*;
 
 WebRTCConfiguration config = new WebRTCConfiguration();
 config.signalingServerUrl = "ws://myserver.com:9090";
+config.room = "my-room"; // optional: only see peers in this room
 
 WebRTCClient client = WebRTCClients.newClient(config, new WebRTCClientListener() {
     public void onSignalingConnected(int localId) {
@@ -282,6 +318,8 @@ client.connect();
 ```
 
 ### 3. Transport API (External Signaling)
+
+> **Note:** Most games should use the Client/Server API (Level 1) with rooms instead. The Transport API exists for advanced use cases where you need to relay SDP/ICE through your own custom signaling infrastructure rather than the built-in signaling server. With room-scoped signaling, you can run many game sessions on a single signaling server without needing custom signaling.
 
 For games with their own signaling mechanism (e.g., a lobby server, matchmaking service). Your application relays SDP offers/answers and ICE candidates through its own infrastructure — the library does not use its built-in signaling.
 
@@ -423,10 +461,10 @@ The server module includes a built-in TURN server (RFC 5766, UDP) that can run a
 
 ```bash
 # Basic signaling only
-java -jar gdx-webrtc-server-0.3.0.jar --port 9090
+java -jar gdx-webrtc-server-0.4.0.jar --port 9090
 
 # With embedded TURN server for NAT traversal
-java -jar gdx-webrtc-server-0.3.0.jar --port 9090 --turn --turn-port 3478 --turn-host 203.0.113.1
+java -jar gdx-webrtc-server-0.4.0.jar --port 9090 --turn --turn-port 3478 --turn-host 203.0.113.1
 ```
 
 **Ports to open:**
@@ -472,9 +510,42 @@ WebRTC requires an out-of-band signaling mechanism to exchange SDP offers/answer
 1. Assigns each connecting client a unique peer ID
 2. Acts as a dumb relay -- stamps the source ID on messages and forwards them to the target peer
 3. Broadcasts `PEER_JOINED`/`PEER_LEFT` events so clients can discover each other
-4. Gets out of the way once peers establish a direct connection
+4. Scopes all broadcasts and message relay to peers in the same **room**
+5. Gets out of the way once peers establish a direct connection
 
 The signaling protocol is a simple JSON format: `{"type":N, "source":S, "target":T, "data":"..."}` with a hand-rolled parser (no JSON library dependency).
+
+**Room-scoped signaling:** Clients join a room by appending `?room=<id>` to the signaling WebSocket URL (handled automatically when `config.room` is set). Peers only receive `PEER_JOINED`/`PEER_LEFT` notifications for others in the same room, and messages can only be relayed between peers in the same room. This allows a single signaling server to host many independent game sessions. Clients that connect without a room parameter share a default global room (backward compatible).
+
+### Client/Server Connection Flow
+
+When using `WebRTCServer` + `WebRTCGameClient`, the connection is established in the following order:
+
+1. **Server** connects to signaling and joins a room → receives `onStarted(serverId)`
+2. **Client** connects to signaling and joins the same room → server receives `onPeerJoined(clientId)`
+3. **Server** sends a `CONNECT_REQUEST` to the client via signaling
+4. **Client** receives the request, creates a `PeerConnection` and data channels, generates an SDP **offer**, and sends it back
+5. **Server** receives the offer, creates its own `PeerConnection`, generates an SDP **answer**, and sends it back
+6. Both sides exchange **ICE candidates** via signaling
+7. **ICE** establishes direct connectivity (via host, server-reflexive, or TURN relay candidates)
+8. **DTLS** handshake secures the connection
+9. **Data channels** open → `onClientConnected(clientId)` / `onConnected()` fire
+
+The entire signaling exchange (steps 2-6) typically completes in under a second. After that, the signaling server is no longer involved — all game data flows directly over WebRTC data channels.
+
+### Debug Logging
+
+The library logs key connection lifecycle events to stdout with a platform-specific tag prefix (e.g., `[WebRTC-Desktop]`, `[WebRTC-TeaVM]`). Events logged include:
+
+- Signaling connection open/close with URL
+- Peer ID assignment (WELCOME)
+- Peer discovery (PEER_JOINED / PEER_LEFT)
+- SDP exchange (CONNECT_REQUEST, OFFER, ANSWER with payload sizes)
+- Signaling errors
+- Connection state transitions (NEW → CONNECTING → CONNECTED → DISCONNECTED → FAILED → CLOSED) with data channel status
+- Data channel open/close events (reliable + unreliable)
+- ICE restart exhaustion warnings
+- STUN reachability warnings (when no server-reflexive candidates are generated)
 
 ### ICE Restart Strategy
 

@@ -5,6 +5,7 @@ import com.github.satori87.gdx.webrtc.Scheduler;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -36,7 +37,7 @@ class ExecutorScheduler implements Scheduler {
      * so it does not prevent JVM shutdown.
      */
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
-            new java.util.concurrent.ThreadFactory() {
+            new ThreadFactory() {
                 public Thread newThread(Runnable r) {
                     Thread t = new Thread(r, "webrtc-scheduler");
                     t.setDaemon(true);

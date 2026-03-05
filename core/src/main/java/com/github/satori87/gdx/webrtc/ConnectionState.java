@@ -55,5 +55,18 @@ public final class ConnectionState {
     /** The peer connection has been permanently closed. */
     public static final int CLOSED = 5;
 
+    /** Returns a human-readable name for the given connection state constant. */
+    public static String toString(int state) {
+        switch (state) {
+            case NEW: return "NEW";
+            case CONNECTING: return "CONNECTING";
+            case CONNECTED: return "CONNECTED";
+            case DISCONNECTED: return "DISCONNECTED";
+            case FAILED: return "FAILED";
+            case CLOSED: return "CLOSED";
+            default: return "UNKNOWN(" + state + ")";
+        }
+    }
+
     private ConnectionState() {}
 }

@@ -222,13 +222,20 @@ public class BaseWebRTCClient implements WebRTCClient {
 
     /** {@inheritDoc} */
     public void connect() {
-        signalingProvider.connect(config.signalingServerUrl, new SignalingEventHandler() {
+        String url = config.signalingServerUrl;
+        if (config.room != null && !config.room.isEmpty()) {
+            url += (url.contains("?") ? "&" : "?") + "room=" + config.room;
+        }
+        log("Connecting to signaling: " + url);
+        signalingProvider.connect(url, new SignalingEventHandler() {
             public void onOpen() {
+                log("Signaling WebSocket opened");
             }
             public void onMessage(SignalMessage msg) {
                 handleSignalingMessage(msg);
             }
             public void onClose(String reason) {
+                log("Signaling WebSocket closed: " + reason);
             }
             public void onError(String error) {
                 if (listener != null) {
@@ -289,33 +296,40 @@ public class BaseWebRTCClient implements WebRTCClient {
                 try {
                     localId = Integer.parseInt(msg.data.trim());
                 } catch (NumberFormatException e) { /* ignore */ }
+                log("WELCOME received, localId=" + localId);
                 if (listener != null) {
                     listener.onSignalingConnected(localId);
                 }
                 break;
             case SignalMessage.TYPE_CONNECT_REQUEST:
+                log("CONNECT_REQUEST from peer " + msg.source);
                 handleConnectRequest(msg.source);
                 break;
             case SignalMessage.TYPE_OFFER:
+                log("OFFER from peer " + msg.source + " (sdp length=" + (msg.data != null ? msg.data.length() : 0) + ")");
                 handleOffer(msg.source, msg.data);
                 break;
             case SignalMessage.TYPE_ANSWER:
+                log("ANSWER from peer " + msg.source + " (sdp length=" + (msg.data != null ? msg.data.length() : 0) + ")");
                 handleAnswer(msg.source, msg.data);
                 break;
             case SignalMessage.TYPE_ICE:
                 handleIce(msg.source, msg.data);
                 break;
             case SignalMessage.TYPE_ERROR:
+                log("ERROR from signaling: " + msg.data);
                 if (listener != null) {
                     listener.onError(msg.data);
                 }
                 break;
             case SignalMessage.TYPE_PEER_JOINED:
+                log("PEER_JOINED: peer " + msg.source);
                 if (listener != null) {
                     listener.onPeerJoined(msg.source);
                 }
                 break;
             case SignalMessage.TYPE_PEER_LEFT:
+                log("PEER_LEFT: peer " + msg.source);
                 if (listener != null) {
                     listener.onPeerLeft(msg.source);
                 }
@@ -508,6 +522,11 @@ public class BaseWebRTCClient implements WebRTCClient {
      * @param state the new connection state (one of the {@link ConnectionState} constants)
      */
     void handleConnectionStateChanged(final PeerState peer, int state) {
+        log("Peer " + peer.peerId + " connection state: " + ConnectionState.toString(state)
+                + " (connected=" + peer.connected + ", reliableChannel="
+                + (peer.reliableChannel != null ? "set" : "null")
+                + ", channelOpen=" + (peer.reliableChannel != null && pcProvider.isChannelOpen(peer.reliableChannel)) + ")");
+
         if (state == ConnectionState.CONNECTED) {
             peer.iceClosedOrFailed = false;
             peer.disconnectedAtMs = 0;
@@ -519,8 +538,12 @@ public class BaseWebRTCClient implements WebRTCClient {
                         + peer.peerId + " — STUN servers may be unreachable");
             }
 
-            if (peer.reliableChannel != null
+            // On ICE restart recovery, check if data channel survived.
+            // Skip during initial connection: channel is created but not yet
+            // open (DTLS completes after ICE CONNECTED).
+            if (peer.connected && peer.reliableChannel != null
                     && !pcProvider.isChannelOpen(peer.reliableChannel)) {
+                log("Peer " + peer.peerId + ": data channel lost after ICE restart, disconnecting");
                 peer.connected = false;
                 if (listener != null) {
                     listener.onDisconnected(peer);
@@ -555,6 +578,8 @@ public class BaseWebRTCClient implements WebRTCClient {
             peer.cancelTimers();
 
             if (peer.iceRestartAttempts > config.maxIceRestartAttempts) {
+                log("Peer " + peer.peerId + ": ICE FAILED, max restart attempts ("
+                        + config.maxIceRestartAttempts + ") exceeded — disconnecting");
                 peer.connected = false;
                 if (listener != null) {
                     listener.onDisconnected(peer);
@@ -656,20 +681,24 @@ public class BaseWebRTCClient implements WebRTCClient {
     DataChannelEventHandler createDataChannelHandler(final PeerState peer) {
         return new DataChannelEventHandler() {
             public void onReliableOpen() {
+                log("Peer " + peer.peerId + ": reliable data channel OPEN");
                 peer.connected = true;
                 if (listener != null) {
                     listener.onConnected(peer);
                 }
             }
             public void onReliableClose() {
+                log("Peer " + peer.peerId + ": reliable data channel CLOSED");
                 peer.connected = false;
                 if (listener != null) {
                     listener.onDisconnected(peer);
                 }
             }
             public void onUnreliableOpen() {
+                log("Peer " + peer.peerId + ": unreliable data channel OPEN");
             }
             public void onUnreliableClose() {
+                log("Peer " + peer.peerId + ": unreliable data channel CLOSED");
             }
             public void onMessage(byte[] data, boolean reliable) {
                 if (listener != null) {

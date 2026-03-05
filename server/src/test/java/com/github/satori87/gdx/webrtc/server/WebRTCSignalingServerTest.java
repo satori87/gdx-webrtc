@@ -76,7 +76,7 @@ class WebRTCSignalingServerTest {
     @Test
     void handleOpenAssignsPeerId() {
         MockSignalingConnection conn = new MockSignalingConnection("a");
-        server.handleOpen(conn);
+        server.handleOpen(conn, "");
         assertEquals(1, server.getPeerCount());
         assertTrue(server.getConnToPeer().containsKey(conn));
     }
@@ -84,7 +84,7 @@ class WebRTCSignalingServerTest {
     @Test
     void handleOpenSendsWelcome() {
         MockSignalingConnection conn = new MockSignalingConnection("a");
-        server.handleOpen(conn);
+        server.handleOpen(conn, "");
         assertEquals(1, conn.sentMessages.size());
         SignalMessage welcome = SignalMessage.fromJson(conn.sentMessages.get(0));
         assertNotNull(welcome);
@@ -96,8 +96,8 @@ class WebRTCSignalingServerTest {
     void handleOpenAssignsIncrementingPeerIds() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
 
         int peerId1 = server.getConnToPeer().get(conn1);
         int peerId2 = server.getConnToPeer().get(conn2);
@@ -108,8 +108,8 @@ class WebRTCSignalingServerTest {
     void handleOpenNotifiesNewPeerAboutExistingPeers() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
 
         // conn2 should receive: WELCOME + PEER_JOINED(conn1)
         assertEquals(2, conn2.sentMessages.size());
@@ -125,10 +125,10 @@ class WebRTCSignalingServerTest {
     void handleOpenBroadcastsPeerJoinedToExisting() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
+        server.handleOpen(conn1, "");
         conn1.sentMessages.clear(); // clear welcome
 
-        server.handleOpen(conn2);
+        server.handleOpen(conn2, "");
 
         // conn1 should receive PEER_JOINED for conn2
         assertEquals(1, conn1.sentMessages.size());
@@ -142,9 +142,9 @@ class WebRTCSignalingServerTest {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
         MockSignalingConnection conn3 = new MockSignalingConnection("c");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
-        server.handleOpen(conn3);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
+        server.handleOpen(conn3, "");
 
         assertEquals(3, server.getPeerCount());
         // conn3 should receive: WELCOME + PEER_JOINED(1) + PEER_JOINED(2)
@@ -156,7 +156,7 @@ class WebRTCSignalingServerTest {
     @Test
     void handleCloseRemovesPeer() {
         MockSignalingConnection conn = new MockSignalingConnection("a");
-        server.handleOpen(conn);
+        server.handleOpen(conn, "");
         assertEquals(1, server.getPeerCount());
 
         server.handleClose(conn);
@@ -168,8 +168,8 @@ class WebRTCSignalingServerTest {
     void handleCloseBroadcastsPeerLeft() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
         conn1.sentMessages.clear();
 
         int peerId2 = server.getConnToPeer().get(conn2);
@@ -195,8 +195,8 @@ class WebRTCSignalingServerTest {
     void handleMessageRelaysToTarget() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
         int peerId1 = server.getConnToPeer().get(conn1);
         int peerId2 = server.getConnToPeer().get(conn2);
         conn2.sentMessages.clear();
@@ -217,8 +217,8 @@ class WebRTCSignalingServerTest {
     void handleMessageStampsSourcePeerId() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
         int peerId1 = server.getConnToPeer().get(conn1);
         int peerId2 = server.getConnToPeer().get(conn2);
         conn2.sentMessages.clear();
@@ -235,7 +235,7 @@ class WebRTCSignalingServerTest {
     @Test
     void handleMessageSendsErrorForUnknownTarget() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
-        server.handleOpen(conn1);
+        server.handleOpen(conn1, "");
         int peerId1 = server.getConnToPeer().get(conn1);
         conn1.sentMessages.clear();
 
@@ -253,8 +253,8 @@ class WebRTCSignalingServerTest {
     void handleMessageSendsErrorForClosedTarget() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
         int peerId2 = server.getConnToPeer().get(conn2);
         conn1.sentMessages.clear();
 
@@ -272,7 +272,7 @@ class WebRTCSignalingServerTest {
     @Test
     void handleMessageHandlesMalformedJson() {
         MockSignalingConnection conn = new MockSignalingConnection("a");
-        server.handleOpen(conn);
+        server.handleOpen(conn, "");
         conn.sentMessages.clear();
 
         // "not-valid-json" is longer than 2 chars, so fromJson returns a message
@@ -287,7 +287,7 @@ class WebRTCSignalingServerTest {
     @Test
     void handleMessageIgnoresNullFromJson() {
         MockSignalingConnection conn = new MockSignalingConnection("a");
-        server.handleOpen(conn);
+        server.handleOpen(conn, "");
         conn.sentMessages.clear();
 
         // fromJson returns null for very short strings
@@ -309,9 +309,9 @@ class WebRTCSignalingServerTest {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
         MockSignalingConnection conn3 = new MockSignalingConnection("c");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
-        server.handleOpen(conn3);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
+        server.handleOpen(conn3, "");
         int peerId1 = server.getConnToPeer().get(conn1);
         int peerId2 = server.getConnToPeer().get(conn2);
         int peerId3 = server.getConnToPeer().get(conn3);
@@ -334,7 +334,7 @@ class WebRTCSignalingServerTest {
     @Test
     void handleMessagePeerListEmptyWhenAlone() {
         MockSignalingConnection conn = new MockSignalingConnection("a");
-        server.handleOpen(conn);
+        server.handleOpen(conn, "");
         int peerId = server.getConnToPeer().get(conn);
         conn.sentMessages.clear();
 
@@ -352,8 +352,8 @@ class WebRTCSignalingServerTest {
     void handleMessageRelaysIceCandidate() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
         int peerId1 = server.getConnToPeer().get(conn1);
         int peerId2 = server.getConnToPeer().get(conn2);
         conn2.sentMessages.clear();
@@ -374,8 +374,8 @@ class WebRTCSignalingServerTest {
     void handleMessageRelaysConnectRequest() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
-        server.handleOpen(conn2);
+        server.handleOpen(conn1, "");
+        server.handleOpen(conn2, "");
         int peerId1 = server.getConnToPeer().get(conn1);
         int peerId2 = server.getConnToPeer().get(conn2);
         conn2.sentMessages.clear();
@@ -401,13 +401,153 @@ class WebRTCSignalingServerTest {
     void getPeerCountTracksConnections() {
         MockSignalingConnection conn1 = new MockSignalingConnection("a");
         MockSignalingConnection conn2 = new MockSignalingConnection("b");
-        server.handleOpen(conn1);
+        server.handleOpen(conn1, "");
         assertEquals(1, server.getPeerCount());
-        server.handleOpen(conn2);
+        server.handleOpen(conn2, "");
         assertEquals(2, server.getPeerCount());
         server.handleClose(conn1);
         assertEquals(1, server.getPeerCount());
         server.handleClose(conn2);
         assertEquals(0, server.getPeerCount());
+    }
+
+    // --- extractRoom tests ---
+
+    @Test
+    void extractRoomFromNull() {
+        assertEquals("", WebRTCSignalingServer.extractRoom(null));
+    }
+
+    @Test
+    void extractRoomNoQueryString() {
+        assertEquals("", WebRTCSignalingServer.extractRoom("/"));
+    }
+
+    @Test
+    void extractRoomWithRoomParam() {
+        assertEquals("myroom", WebRTCSignalingServer.extractRoom("/?room=myroom"));
+    }
+
+    @Test
+    void extractRoomWithMultipleParams() {
+        assertEquals("abc", WebRTCSignalingServer.extractRoom("/?foo=bar&room=abc&baz=1"));
+    }
+
+    @Test
+    void extractRoomNoRoomParam() {
+        assertEquals("", WebRTCSignalingServer.extractRoom("/?foo=bar"));
+    }
+
+    // --- Room isolation tests ---
+
+    @Test
+    void peersInDifferentRoomsDontSeeEachOther() {
+        MockSignalingConnection connA = new MockSignalingConnection("a");
+        MockSignalingConnection connB = new MockSignalingConnection("b");
+        server.handleOpen(connA, "room1");
+        server.handleOpen(connB, "room2");
+
+        // connA should only get WELCOME (no PEER_JOINED for connB)
+        assertEquals(1, connA.sentMessages.size());
+        SignalMessage welcome = SignalMessage.fromJson(connA.sentMessages.get(0));
+        assertEquals(SignalMessage.TYPE_WELCOME, welcome.type);
+
+        // connB should only get WELCOME (no PEER_JOINED for connA)
+        assertEquals(1, connB.sentMessages.size());
+        welcome = SignalMessage.fromJson(connB.sentMessages.get(0));
+        assertEquals(SignalMessage.TYPE_WELCOME, welcome.type);
+    }
+
+    @Test
+    void peersInSameRoomSeeEachOther() {
+        MockSignalingConnection connA = new MockSignalingConnection("a");
+        MockSignalingConnection connB = new MockSignalingConnection("b");
+        server.handleOpen(connA, "room1");
+        server.handleOpen(connB, "room1");
+
+        // connB should get WELCOME + PEER_JOINED(connA)
+        assertEquals(2, connB.sentMessages.size());
+        // connA should get WELCOME + PEER_JOINED(connB)
+        assertEquals(2, connA.sentMessages.size());
+    }
+
+    @Test
+    void peerLeftOnlySentToSameRoom() {
+        MockSignalingConnection connA = new MockSignalingConnection("a");
+        MockSignalingConnection connB = new MockSignalingConnection("b");
+        MockSignalingConnection connC = new MockSignalingConnection("c");
+        server.handleOpen(connA, "room1");
+        server.handleOpen(connB, "room1");
+        server.handleOpen(connC, "room2");
+        connA.sentMessages.clear();
+        connC.sentMessages.clear();
+
+        server.handleClose(connB);
+
+        // connA (same room) should get PEER_LEFT
+        assertEquals(1, connA.sentMessages.size());
+        SignalMessage left = SignalMessage.fromJson(connA.sentMessages.get(0));
+        assertEquals(SignalMessage.TYPE_PEER_LEFT, left.type);
+
+        // connC (different room) should get nothing
+        assertEquals(0, connC.sentMessages.size());
+    }
+
+    @Test
+    void crossRoomRelayBlocked() {
+        MockSignalingConnection connA = new MockSignalingConnection("a");
+        MockSignalingConnection connB = new MockSignalingConnection("b");
+        server.handleOpen(connA, "room1");
+        server.handleOpen(connB, "room2");
+        int peerIdA = server.getConnToPeer().get(connA);
+        int peerIdB = server.getConnToPeer().get(connB);
+        connA.sentMessages.clear();
+        connB.sentMessages.clear();
+
+        // connA tries to send to connB (different room)
+        SignalMessage offer = new SignalMessage(
+                SignalMessage.TYPE_OFFER, peerIdA, peerIdB, "sdp");
+        server.handleMessage(connA, offer.toJson());
+
+        // connB should not receive anything
+        assertEquals(0, connB.sentMessages.size());
+        // connA should get error
+        assertEquals(1, connA.sentMessages.size());
+        SignalMessage err = SignalMessage.fromJson(connA.sentMessages.get(0));
+        assertEquals(SignalMessage.TYPE_ERROR, err.type);
+    }
+
+    @Test
+    void peerListOnlyReturnsSameRoom() {
+        MockSignalingConnection connA = new MockSignalingConnection("a");
+        MockSignalingConnection connB = new MockSignalingConnection("b");
+        MockSignalingConnection connC = new MockSignalingConnection("c");
+        server.handleOpen(connA, "room1");
+        server.handleOpen(connB, "room1");
+        server.handleOpen(connC, "room2");
+        int peerIdA = server.getConnToPeer().get(connA);
+        int peerIdB = server.getConnToPeer().get(connB);
+        int peerIdC = server.getConnToPeer().get(connC);
+        connA.sentMessages.clear();
+
+        SignalMessage listReq = new SignalMessage(
+                SignalMessage.TYPE_PEER_LIST, peerIdA, 0, "");
+        server.handleMessage(connA, listReq.toJson());
+
+        SignalMessage listResp = SignalMessage.fromJson(connA.sentMessages.get(0));
+        assertTrue(listResp.data.contains(String.valueOf(peerIdB)));
+        assertFalse(listResp.data.contains(String.valueOf(peerIdC)));
+    }
+
+    @Test
+    void defaultRoomBackwardCompatible() {
+        // Peers with no room (empty string) should see each other
+        MockSignalingConnection connA = new MockSignalingConnection("a");
+        MockSignalingConnection connB = new MockSignalingConnection("b");
+        server.handleOpen(connA, "");
+        server.handleOpen(connB, "");
+
+        // connB should get WELCOME + PEER_JOINED
+        assertEquals(2, connB.sentMessages.size());
     }
 }

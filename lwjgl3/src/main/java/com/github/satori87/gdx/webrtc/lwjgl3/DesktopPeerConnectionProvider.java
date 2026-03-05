@@ -1,6 +1,7 @@
 package com.github.satori87.gdx.webrtc.lwjgl3;
 
 import com.github.satori87.gdx.webrtc.*;
+import com.github.satori87.gdx.webrtc.util.Log;
 import dev.onvoid.webrtc.*;
 import dev.onvoid.webrtc.media.audio.AudioDeviceModule;
 import dev.onvoid.webrtc.media.audio.AudioLayer;
@@ -93,7 +94,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
                     factory = new PeerConnectionFactory();
                 }
             } catch (Exception e) {
-                System.err.println(TAG + "PeerConnectionFactory FAILED: " + e);
+                Log.warn(TAG + "PeerConnectionFactory FAILED: " + e);
             }
         }
         return factory;
@@ -146,7 +147,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
                             candidate.sdp, candidate.sdpMid, candidate.sdpMLineIndex);
                     handler.onIceCandidate(json);
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error sending ICE candidate: " + e);
+                    Log.warn(TAG + "Error sending ICE candidate: " + e);
                 }
             }
 
@@ -155,7 +156,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
                     String label = channel.getLabel();
                     handler.onDataChannel(channel, label);
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in onDataChannel: " + e);
+                    Log.warn(TAG + "Error in onDataChannel: " + e);
                 }
             }
 
@@ -163,7 +164,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
                 try {
                     handler.onConnectionStateChanged(mapConnectionState(state));
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in onConnectionChange: " + e);
+                    Log.warn(TAG + "Error in onConnectionChange: " + e);
                 }
             }
         };
@@ -171,7 +172,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
         try {
             return pcFactory.createPeerConnection(rtcConfig, observer);
         } catch (Exception e) {
-            System.err.println(TAG + "createPeerConnection FAILED: " + e);
+            Log.warn(TAG + "createPeerConnection FAILED: " + e);
             return null;
         }
     }
@@ -277,7 +278,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
                 // OK
             }
             public void onFailure(String error) {
-                System.err.println(TAG + "Set remote desc (answer) failed: " + error);
+                Log.warn(TAG + "Set remote desc (answer) failed: " + error);
             }
         });
     }
@@ -303,7 +304,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
         try {
             pc.addIceCandidate(new RTCIceCandidate(sdpMid, sdpMLineIndex, candidate));
         } catch (Exception e) {
-            System.err.println(TAG + "addIceCandidate failed: " + e);
+            Log.warn(TAG + "addIceCandidate failed: " + e);
         }
     }
 
@@ -541,7 +542,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
                         }
                     }
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in channel onStateChange: " + e);
+                    Log.warn(TAG + "Error in channel onStateChange: " + e);
                 }
             }
 
@@ -552,7 +553,7 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
                     bb.get(data);
                     handler.onMessage(data, reliable);
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in channel onMessage: " + e);
+                    Log.warn(TAG + "Error in channel onMessage: " + e);
                 }
             }
         });

@@ -1,5 +1,7 @@
 package com.github.satori87.gdx.webrtc.server.turn;
 
+import com.github.satori87.gdx.webrtc.util.Log;
+
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
@@ -140,7 +142,7 @@ public class TurnServer {
             socket = new DatagramSocket(config.port);
             socket.setReuseAddress(true);
         } catch (SocketException e) {
-            System.err.println(TAG + "Failed to bind port " + config.port + ": " + e.getMessage());
+            Log.warn(TAG + "Failed to bind port " + config.port + ": " + e.getMessage());
             return;
         }
 
@@ -162,7 +164,7 @@ public class TurnServer {
         cleanupThread.setDaemon(true);
         cleanupThread.start();
 
-        System.out.println(TAG + "Started on port " + config.port);
+        Log.info(TAG + "Started on port " + config.port);
     }
 
     /**
@@ -180,7 +182,7 @@ public class TurnServer {
             alloc.close();
         }
         allocations.clear();
-        System.out.println(TAG + "Stopped");
+        Log.info(TAG + "Stopped");
     }
 
     /**
@@ -199,9 +201,9 @@ public class TurnServer {
                 handlePacket(pkt.getData(), pkt.getLength(),
                         new InetSocketAddress(pkt.getAddress(), pkt.getPort()));
             } catch (SocketException e) {
-                if (running) System.err.println(TAG + "Socket error: " + e.getMessage());
+                if (running) Log.warn(TAG + "Socket error: " + e.getMessage());
             } catch (Exception e) {
-                System.err.println(TAG + "Error: " + e.getMessage());
+                Log.warn(TAG + "Error: " + e.getMessage());
             }
         }
     }
@@ -222,7 +224,7 @@ public class TurnServer {
                     Map.Entry<String, TurnAllocation> entry = it.next();
                     TurnAllocation alloc = entry.getValue();
                     if (alloc.isExpired()) {
-                        System.out.println(TAG + "Allocation expired: " + entry.getKey());
+                        Log.debug(TAG + "Allocation expired: " + entry.getKey());
                         alloc.close();
                         it.remove();
                     }
@@ -300,7 +302,7 @@ public class TurnServer {
                 handleSend(msg, from);
                 break;
             default:
-                System.out.println(TAG + "Unknown method: 0x" + Integer.toHexString(method));
+                Log.debug(TAG + "Unknown method: 0x" + Integer.toHexString(method));
                 break;
         }
     }
@@ -453,7 +455,7 @@ public class TurnServer {
         resp.putInt(StunConstants.ATTR_LIFETIME, lifetime);
         sendTo(resp.encodeWithIntegrity(key), from);
 
-        System.out.println(TAG + "Allocation created: " + clientKey + " -> relay " + relayAddr);
+        Log.info(TAG + "Allocation created: " + clientKey + " -> relay " + relayAddr);
     }
 
     /**
@@ -498,7 +500,7 @@ public class TurnServer {
         if (lifetime == 0) {
             alloc.close();
             allocations.remove(clientKey);
-            System.out.println(TAG + "Allocation deleted by refresh: " + clientKey);
+            Log.debug(TAG + "Allocation deleted by refresh: " + clientKey);
         } else {
             alloc.refresh(lifetime);
         }
@@ -735,7 +737,7 @@ public class TurnServer {
                     } catch (SocketException e) {
                         break;
                     } catch (Exception e) {
-                        if (running) System.err.println(TAG + "Relay error: " + e.getMessage());
+                        if (running) Log.warn(TAG + "Relay error: " + e.getMessage());
                     }
                 }
             }

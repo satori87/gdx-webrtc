@@ -1,6 +1,7 @@
 package com.github.satori87.gdx.webrtc.ios;
 
 import com.github.satori87.gdx.webrtc.*;
+import com.github.satori87.gdx.webrtc.util.Log;
 import com.github.satori87.gdx.webrtc.ios.bindings.*;
 
 import org.robovm.apple.foundation.NSArray;
@@ -29,12 +30,12 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
      */
     private static synchronized RTCPeerConnectionFactory getFactory() {
         if (factory == null) {
-            System.out.println(TAG + "Creating RTCPeerConnectionFactory...");
+            Log.info(TAG + "Creating RTCPeerConnectionFactory...");
             try {
                 factory = RTCPeerConnectionFactory.create();
-                System.out.println(TAG + "RTCPeerConnectionFactory created OK");
+                Log.info(TAG + "RTCPeerConnectionFactory created OK");
             } catch (Exception e) {
-                System.err.println(TAG + "RTCPeerConnectionFactory FAILED: " + e);
+                Log.warn(TAG + "RTCPeerConnectionFactory FAILED: " + e);
                 e.printStackTrace();
             }
         }
@@ -63,7 +64,7 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
                             candidate.getSdp(), candidate.getSdpMid(), candidate.getSdpMLineIndex());
                     handler.onIceCandidate(json);
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error sending ICE candidate: " + e);
+                    Log.warn(TAG + "Error sending ICE candidate: " + e);
                 }
             }
 
@@ -72,7 +73,7 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
                     String label = dataChannel.getLabel();
                     handler.onDataChannel(dataChannel, label);
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in didOpenDataChannel: " + e);
+                    Log.warn(TAG + "Error in didOpenDataChannel: " + e);
                 }
             }
 
@@ -80,7 +81,7 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
                 try {
                     handler.onConnectionStateChanged(mapConnectionState(newState));
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in didChangeConnectionState: " + e);
+                    Log.warn(TAG + "Error in didChangeConnectionState: " + e);
                 }
             }
         };
@@ -88,7 +89,7 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
         try {
             return pcFactory.createPeerConnection(rtcConfig, constraints, delegate);
         } catch (Exception e) {
-            System.err.println(TAG + "createPeerConnection FAILED: " + e);
+            Log.warn(TAG + "createPeerConnection FAILED: " + e);
             return null;
         }
     }
@@ -167,7 +168,7 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
         pc.setRemoteDescription(answer, new VoidBlock1<NSObject>() {
             public void invoke(NSObject error) {
                 if (error != null) {
-                    System.err.println(TAG + "Set remote desc (answer) failed: " + error);
+                    Log.warn(TAG + "Set remote desc (answer) failed: " + error);
                 }
             }
         });
@@ -185,12 +186,12 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
             pc.addIceCandidate(iceCandidate, new VoidBlock1<NSObject>() {
                 public void invoke(NSObject error) {
                     if (error != null) {
-                        System.err.println(TAG + "addIceCandidate failed: " + error);
+                        Log.warn(TAG + "addIceCandidate failed: " + error);
                     }
                 }
             });
         } catch (Exception e) {
-            System.err.println(TAG + "addIceCandidate failed: " + e);
+            Log.warn(TAG + "addIceCandidate failed: " + e);
         }
     }
 
@@ -321,7 +322,7 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
                         }
                     }
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in dataChannelDidChangeState: " + e);
+                    Log.warn(TAG + "Error in dataChannelDidChangeState: " + e);
                 }
             }
 
@@ -330,7 +331,7 @@ class IOSPeerConnectionProvider implements PeerConnectionProvider {
                     byte[] data = buffer.getBytes();
                     handler.onMessage(data, reliable);
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in didReceiveMessage: " + e);
+                    Log.warn(TAG + "Error in didReceiveMessage: " + e);
                 }
             }
         });

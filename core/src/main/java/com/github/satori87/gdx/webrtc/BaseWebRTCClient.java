@@ -1,5 +1,7 @@
 package com.github.satori87.gdx.webrtc;
 
+import com.github.satori87.gdx.webrtc.util.Log;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -746,6 +748,6 @@ public class BaseWebRTCClient implements WebRTCClient {
      * @param msg the message to log
      */
     private void log(String msg) {
-        System.out.println(tag + msg);
+        Log.debug(tag + msg);
     }
 }

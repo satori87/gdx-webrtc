@@ -533,9 +533,39 @@ When using `WebRTCServer` + `WebRTCGameClient`, the connection is established in
 
 The entire signaling exchange (steps 2-6) typically completes in under a second. After that, the signaling server is no longer involved — all game data flows directly over WebRTC data channels.
 
+### Log Level Configuration
+
+The library uses a built-in `Log` class with four levels: `DEBUG`, `INFO`, `WARN`, `ERROR`, and `NONE`. The default level is `INFO`, which shows important lifecycle messages while suppressing verbose debug output.
+
+Set the log level with a static call before (or during) use:
+
+```java
+import com.github.satori87.gdx.webrtc.util.Log;
+
+// Show all messages including debug traces
+Log.DEBUG();
+
+// Show only warnings and errors (quieter)
+Log.WARN();
+
+// Silence all library output
+Log.NONE();
+
+// Or set dynamically
+Log.setCurrentLogLevel(Log.LogLevel.INFO);
+```
+
+| Level | What's logged |
+|-------|--------------|
+| `DEBUG` | Everything: per-message traces, peer connect/disconnect, ICE details, allocation lifecycle |
+| `INFO` | Server start/stop, factory initialization, peer connections, TURN allocations |
+| `WARN` | Recoverable errors: failed ICE candidates, socket errors, factory failures |
+| `ERROR` | Fatal errors (not used by the library -- reserved for application use) |
+| `NONE` | Nothing |
+
 ### Debug Logging
 
-The library logs key connection lifecycle events to stdout with a platform-specific tag prefix (e.g., `[WebRTC-Desktop]`, `[WebRTC-TeaVM]`). Events logged include:
+The library logs key connection lifecycle events with a platform-specific tag prefix (e.g., `[WebRTC-Desktop]`, `[WebRTC-TeaVM]`). Events logged include:
 
 - Signaling connection open/close with URL
 - Peer ID assignment (WELCOME)

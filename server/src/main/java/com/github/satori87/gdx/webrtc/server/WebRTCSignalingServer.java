@@ -1,6 +1,7 @@
 package com.github.satori87.gdx.webrtc.server;
 
 import com.github.satori87.gdx.webrtc.SignalMessage;
+import com.github.satori87.gdx.webrtc.util.Log;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
@@ -132,12 +133,12 @@ public class WebRTCSignalingServer {
 
             @Override
             public void onError(WebSocket conn, Exception ex) {
-                System.err.println(TAG + "Error: " + ex.getMessage());
+                Log.warn(TAG + "Error: " + ex.getMessage());
             }
 
             @Override
             public void onStart() {
-                System.out.println(TAG + "Signaling server started on port " + config.port);
+                Log.info(TAG + "Signaling server started on port " + config.port);
             }
         };
         wsServer.setConnectionLostTimeout(config.connectionLostTimeout);
@@ -158,7 +159,7 @@ public class WebRTCSignalingServer {
                 Thread.currentThread().interrupt();
             }
         }
-        System.out.println(TAG + "Signaling server stopped");
+        Log.info(TAG + "Signaling server stopped");
     }
 
     /**
@@ -186,7 +187,7 @@ public class WebRTCSignalingServer {
         peerToConn.put(peerId, conn);
         connToRoom.put(conn, room);
 
-        System.out.println(TAG + "Peer " + peerId + " connected from " + conn.getRemoteSocketAddress()
+        Log.info(TAG + "Peer " + peerId + " connected from " + conn.getRemoteSocketAddress()
                 + (room.isEmpty() ? "" : " (room: " + room + ")"));
 
         // Send WELCOME with assigned peer ID
@@ -235,7 +236,7 @@ public class WebRTCSignalingServer {
         String room = connToRoom.remove(conn);
         if (peerId != null) {
             peerToConn.remove(peerId);
-            System.out.println(TAG + "Peer " + peerId + " disconnected");
+            Log.info(TAG + "Peer " + peerId + " disconnected");
 
             // Broadcast PEER_LEFT to remaining peers in the same room
             if (room == null) room = "";

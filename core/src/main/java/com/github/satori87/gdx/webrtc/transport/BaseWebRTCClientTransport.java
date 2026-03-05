@@ -1,5 +1,6 @@
 package com.github.satori87.gdx.webrtc.transport;
 
+import com.github.satori87.gdx.webrtc.util.Log;
 import com.github.satori87.gdx.webrtc.ConnectionState;
 import com.github.satori87.gdx.webrtc.DataChannelEventHandler;
 import com.github.satori87.gdx.webrtc.PeerConnectionProvider;
@@ -407,7 +408,7 @@ public class BaseWebRTCClientTransport implements WebRTCClientTransport {
      * @param msg the message to log
      */
     private void log(String msg) {
-        System.out.println(tag + msg);
+        Log.debug(tag + msg);
     }
 
     // --- Package-private accessors for testing ---

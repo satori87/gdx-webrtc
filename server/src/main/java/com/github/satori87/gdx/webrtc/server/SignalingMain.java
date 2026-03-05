@@ -1,5 +1,6 @@
 package com.github.satori87.gdx.webrtc.server;
 
+import com.github.satori87.gdx.webrtc.util.Log;
 import com.github.satori87.gdx.webrtc.server.turn.TurnConfig;
 import com.github.satori87.gdx.webrtc.server.turn.TurnServer;
 
@@ -86,7 +87,7 @@ public class SignalingMain {
             turnServer.start();
         }
 
-        System.out.println("gdx-webrtc server running. Press Ctrl+C to stop.");
+        Log.info("gdx-webrtc server running. Press Ctrl+C to stop.");
 
         // Block main thread
         final WebRTCSignalingServer signalingRef = signaling;

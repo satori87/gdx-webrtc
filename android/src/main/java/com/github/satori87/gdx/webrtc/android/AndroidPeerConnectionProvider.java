@@ -2,6 +2,7 @@ package com.github.satori87.gdx.webrtc.android;
 
 import android.content.Context;
 
+import com.github.satori87.gdx.webrtc.util.Log;
 import com.github.satori87.gdx.webrtc.ChannelPair;
 import com.github.satori87.gdx.webrtc.ConnectionState;
 import com.github.satori87.gdx.webrtc.DataChannelEventHandler;
@@ -118,7 +119,7 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
      */
     private static synchronized PeerConnectionFactory getFactory(Context context) {
         if (factory == null) {
-            System.out.println(TAG + "Creating PeerConnectionFactory...");
+            Log.info(TAG + "Creating PeerConnectionFactory...");
             try {
                 if (!factoryInitialized) {
                     PeerConnectionFactory.InitializationOptions options =
@@ -128,9 +129,9 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
                     factoryInitialized = true;
                 }
                 factory = PeerConnectionFactory.builder().createPeerConnectionFactory();
-                System.out.println(TAG + "PeerConnectionFactory created OK");
+                Log.info(TAG + "PeerConnectionFactory created OK");
             } catch (Exception e) {
-                System.err.println(TAG + "PeerConnectionFactory FAILED: " + e);
+                Log.warn(TAG + "PeerConnectionFactory FAILED: " + e);
                 e.printStackTrace();
             }
         }
@@ -184,7 +185,7 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
                             candidate.sdp, candidate.sdpMid, candidate.sdpMLineIndex);
                     handler.onIceCandidate(json);
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error sending ICE candidate: " + e);
+                    Log.warn(TAG + "Error sending ICE candidate: " + e);
                 }
             }
 
@@ -193,7 +194,7 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
                     String label = channel.label();
                     handler.onDataChannel(channel, label);
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in onDataChannel: " + e);
+                    Log.warn(TAG + "Error in onDataChannel: " + e);
                 }
             }
 
@@ -201,7 +202,7 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
                 try {
                     handler.onConnectionStateChanged(mapConnectionState(state));
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in onConnectionChange: " + e);
+                    Log.warn(TAG + "Error in onConnectionChange: " + e);
                 }
             }
 
@@ -330,7 +331,7 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
                 // OK
             }
             public void onSetFailure(String error) {
-                System.err.println(TAG + "Set remote answer failed: " + error);
+                Log.warn(TAG + "Set remote answer failed: " + error);
             }
         }, answer);
     }
@@ -355,7 +356,7 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
         try {
             pc.addIceCandidate(new IceCandidate(sdpMid, sdpMLineIndex, candidate));
         } catch (Exception e) {
-            System.err.println(TAG + "addIceCandidate failed: " + e);
+            Log.warn(TAG + "addIceCandidate failed: " + e);
         }
     }
 
@@ -535,7 +536,7 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
                         }
                     }
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in channel onStateChange: " + e);
+                    Log.warn(TAG + "Error in channel onStateChange: " + e);
                 }
             }
 
@@ -546,7 +547,7 @@ class AndroidPeerConnectionProvider implements PeerConnectionProvider {
                     bb.get(data);
                     handler.onMessage(data, reliable);
                 } catch (Exception e) {
-                    System.err.println(TAG + "Error in channel onMessage: " + e);
+                    Log.warn(TAG + "Error in channel onMessage: " + e);
                 }
             }
         });

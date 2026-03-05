@@ -1,5 +1,6 @@
 package com.github.satori87.gdx.webrtc.teavm;
 
+import com.github.satori87.gdx.webrtc.util.Log;
 import com.github.satori87.gdx.webrtc.ChannelPair;
 import com.github.satori87.gdx.webrtc.ConnectionState;
 import com.github.satori87.gdx.webrtc.DataChannelEventHandler;
@@ -334,7 +335,7 @@ public class TeaVMPeerConnectionProvider implements PeerConnectionProvider {
         };
         StringCallback errorCb = new StringCallback() {
             public void onResult(String error) {
-                System.out.println("[WebRTC-Browser] Set remote answer failed: " + error);
+                Log.warn("[WebRTC-Browser] Set remote answer failed: " + error);
             }
         };
         retainCallback(pc, successCb);

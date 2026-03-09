@@ -1,0 +1,4 @@
+jdk:
+  - openjdk17
+install:
+  - ./gradlew publishToMavenLocal -x :android:publishToMavenLocal -x :ios:publishToMavenLocal

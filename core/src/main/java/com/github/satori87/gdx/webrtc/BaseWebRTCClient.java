@@ -56,6 +56,7 @@ public class BaseWebRTCClient implements WebRTCClient {
 
     private int localId = -1;
     private final Map peers = new HashMap();
+    private Object keepaliveTimerHandle;
 
     /**
      * Internal state for a single peer connection.
@@ -249,6 +250,7 @@ public class BaseWebRTCClient implements WebRTCClient {
 
     /** {@inheritDoc} */
     public void disconnect() {
+        stopSignalingKeepalive();
         List peerList = new ArrayList(peers.values());
         for (int i = 0; i < peerList.size(); i++) {
             ((PeerState) peerList.get(i)).close();
@@ -299,6 +301,7 @@ public class BaseWebRTCClient implements WebRTCClient {
                     localId = Integer.parseInt(msg.data.trim());
                 } catch (NumberFormatException e) { /* ignore */ }
                 log("WELCOME received, localId=" + localId);
+                startSignalingKeepalive();
                 if (listener != null) {
                     listener.onSignalingConnected(localId);
                 }
@@ -738,6 +741,41 @@ public class BaseWebRTCClient implements WebRTCClient {
      */
     Map getPeers() {
         return peers;
+    }
+
+    // --- Signaling keepalive ---
+
+    /**
+     * Starts the signaling keepalive timer. Sends a lightweight PEER_LIST
+     * request periodically to prevent reverse proxies (e.g. nginx) from
+     * closing idle WebSocket connections. The signaling server responds
+     * with a peer list, keeping traffic flowing in both directions.
+     */
+    private void startSignalingKeepalive() {
+        stopSignalingKeepalive();
+        if (config.signalingKeepaliveMs <= 0) return;
+
+        keepaliveTimerHandle = scheduler.schedule(new Runnable() {
+            public void run() {
+                if (signalingProvider.isOpen() && localId >= 0) {
+                    SignalMessage ping = new SignalMessage(
+                            SignalMessage.TYPE_PEER_LIST, localId, 0, "");
+                    signalingProvider.send(ping);
+                    // Schedule next keepalive
+                    keepaliveTimerHandle = scheduler.schedule(this, config.signalingKeepaliveMs);
+                }
+            }
+        }, config.signalingKeepaliveMs);
+    }
+
+    /**
+     * Stops the signaling keepalive timer.
+     */
+    private void stopSignalingKeepalive() {
+        if (keepaliveTimerHandle != null) {
+            scheduler.cancel(keepaliveTimerHandle);
+            keepaliveTimerHandle = null;
+        }
     }
 
     // --- Logging ---

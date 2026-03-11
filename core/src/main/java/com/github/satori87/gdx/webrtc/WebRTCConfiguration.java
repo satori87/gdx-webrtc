@@ -65,6 +65,14 @@ public class WebRTCConfiguration {
     public static final int DEFAULT_UNRELIABLE_MAX_RETRANSMITS = 0;
 
     /**
+     * Default signaling keepalive interval in milliseconds. A PEER_LIST request
+     * is sent periodically to prevent reverse proxies (e.g. nginx) from closing
+     * idle WebSocket connections. Value: 30000 (30 seconds).
+     * Set to 0 to disable keepalive.
+     */
+    public static final int DEFAULT_SIGNALING_KEEPALIVE_MS = 30000;
+
+    /**
      * Default STUN server URLs for NAT traversal, queried simultaneously for redundancy.
      * Includes Google primary, Google secondary, and Cloudflare public STUN servers.
      */
@@ -177,6 +185,18 @@ public class WebRTCConfiguration {
      * @see #DEFAULT_UNRELIABLE_MAX_RETRANSMITS
      */
     public int unreliableMaxRetransmits = DEFAULT_UNRELIABLE_MAX_RETRANSMITS;
+
+    /**
+     * Signaling keepalive interval in milliseconds. A lightweight PEER_LIST
+     * request is sent periodically to prevent reverse proxies (e.g. nginx with
+     * default 60s proxy_read_timeout) from closing idle signaling WebSocket
+     * connections. This is critical for ICE restart to work, since ICE restart
+     * requires the signaling channel to exchange new SDP offers/answers.
+     * Set to 0 to disable.
+     *
+     * @see #DEFAULT_SIGNALING_KEEPALIVE_MS
+     */
+    public int signalingKeepaliveMs = DEFAULT_SIGNALING_KEEPALIVE_MS;
 
     /** @return the ICE restart delay in milliseconds */
     public int getIceRestartDelayMs() { return iceRestartDelayMs; }

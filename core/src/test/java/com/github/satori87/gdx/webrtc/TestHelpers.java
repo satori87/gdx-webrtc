@@ -238,6 +238,7 @@ public class TestHelpers {
                                           MockListener listener) {
         WebRTCConfiguration config = new WebRTCConfiguration();
         config.signalingServerUrl = "ws://test:9090";
+        config.signalingKeepaliveMs = 0; // Disable keepalive in tests
         return new BaseWebRTCClient("[Test] ", config, listener, pc, sig, sched);
     }
 

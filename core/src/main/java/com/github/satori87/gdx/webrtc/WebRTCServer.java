@@ -199,11 +199,15 @@ public class WebRTCServer implements ServerTransport {
 
     /**
      * Returns whether the server is running (connected to signaling).
+     * Returns {@code false} if the signaling WebSocket has closed, even if
+     * {@link #stop()} was not explicitly called, so that callers can detect
+     * signaling disconnection and attempt reconnection.
      *
-     * @return {@code true} if the server is running
+     * @return {@code true} if the server was started and the signaling
+     *         WebSocket is still open
      */
     public boolean isRunning() {
-        return running;
+        return running && client.isConnectedToSignaling();
     }
 
     /**

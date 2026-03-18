@@ -535,10 +535,16 @@ public class BaseWebRTCClient implements WebRTCClient {
      * @param state the new connection state (one of the {@link ConnectionState} constants)
      */
     void handleConnectionStateChanged(final PeerState peer, int state) {
+        // Synchronize native object access to prevent crashes from
+        // concurrent close() freeing the underlying C++ objects
+        boolean channelOpen;
+        synchronized (peer) {
+            channelOpen = peer.reliableChannel != null && pcProvider.isChannelOpen(peer.reliableChannel);
+        }
         log("Peer " + peer.peerId + " connection state: " + ConnectionState.toString(state)
                 + " (connected=" + peer.connected + ", reliableChannel="
                 + (peer.reliableChannel != null ? "set" : "null")
-                + ", channelOpen=" + (peer.reliableChannel != null && pcProvider.isChannelOpen(peer.reliableChannel)) + ")");
+                + ", channelOpen=" + channelOpen + ")");
 
         if (state == ConnectionState.CONNECTED) {
             peer.iceClosedOrFailed = false;
@@ -554,8 +560,7 @@ public class BaseWebRTCClient implements WebRTCClient {
             // On ICE restart recovery, check if data channel survived.
             // Skip during initial connection: channel is created but not yet
             // open (DTLS completes after ICE CONNECTED).
-            if (peer.connected && peer.reliableChannel != null
-                    && !pcProvider.isChannelOpen(peer.reliableChannel)) {
+            if (peer.connected && !channelOpen && peer.reliableChannel != null) {
                 log("Peer " + peer.peerId + ": data channel lost after ICE restart, disconnecting");
                 peer.connected = false;
                 if (listener != null) {
@@ -572,14 +577,16 @@ public class BaseWebRTCClient implements WebRTCClient {
             }
             peer.disconnectedTimerHandle = scheduler.schedule(new Runnable() {
                 public void run() {
-                    try {
-                        if (peer.disconnectedAtMs == stamp
-                                && !peer.iceClosedOrFailed
-                                && peer.peerConnection != null) {
-                            pcProvider.restartIce(peer.peerConnection);
+                    synchronized (peer) {
+                        try {
+                            if (peer.disconnectedAtMs == stamp
+                                    && !peer.iceClosedOrFailed
+                                    && peer.peerConnection != null) {
+                                pcProvider.restartIce(peer.peerConnection);
+                            }
+                        } catch (Exception e) {
+                            /* ICE restart failed */
                         }
-                    } catch (Exception e) {
-                        /* ICE restart failed */
                     }
                 }
             }, config.iceRestartDelayMs);
@@ -603,14 +610,16 @@ public class BaseWebRTCClient implements WebRTCClient {
 
                 peer.failedTimerHandle = scheduler.schedule(new Runnable() {
                     public void run() {
-                        try {
-                            if (peer.peerConnection != null && peer.iceClosedOrFailed) {
-                                pcProvider.restartIce(peer.peerConnection);
-                            }
-                        } catch (Exception e) {
-                            peer.connected = false;
-                            if (listener != null) {
-                                listener.onDisconnected(peer);
+                        synchronized (peer) {
+                            try {
+                                if (peer.peerConnection != null && peer.iceClosedOrFailed) {
+                                    pcProvider.restartIce(peer.peerConnection);
+                                }
+                            } catch (Exception e) {
+                                peer.connected = false;
+                                if (listener != null) {
+                                    listener.onDisconnected(peer);
+                                }
                             }
                         }
                     }

@@ -410,7 +410,13 @@ class DesktopPeerConnectionProvider implements PeerConnectionProvider {
     public void sendData(Object channel, byte[] data) {
         RTCDataChannel dc = (RTCDataChannel) channel;
         try {
-            ByteBuffer buf = ByteBuffer.wrap(data);
+            // Use a direct ByteBuffer for native safety. Heap-backed buffers
+            // (ByteBuffer.wrap) can be relocated by SubstrateVM's GC while
+            // the native WebRTC layer is asynchronously reading the data,
+            // causing SIGSEGV in GraalVM native image builds.
+            ByteBuffer buf = ByteBuffer.allocateDirect(data.length);
+            buf.put(data);
+            buf.flip();
             dc.send(new RTCDataChannelBuffer(buf, true));
         } catch (Exception e) {
             // Channel may be closing

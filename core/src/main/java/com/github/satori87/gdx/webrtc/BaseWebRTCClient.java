@@ -125,8 +125,10 @@ public class BaseWebRTCClient implements WebRTCClient {
          *
          * <p>Sends via the platform's {@link PeerConnectionProvider#sendData(Object, byte[])}
          * on the reliable channel. No-op if not connected or the reliable channel is null.</p>
+         *
+         * <p>Synchronized to prevent native crashes from concurrent close().</p>
          */
-        public void sendReliable(byte[] data) {
+        public synchronized void sendReliable(byte[] data) {
             if (reliableChannel != null && connected) {
                 pcProvider.sendData(reliableChannel, data);
             }
@@ -140,8 +142,10 @@ public class BaseWebRTCClient implements WebRTCClient {
          * If the buffer is full, the packet is silently dropped. If the unreliable
          * channel is unavailable (null or not connected), falls back to
          * {@link #sendReliable(byte[])}.</p>
+         *
+         * <p>Synchronized to prevent native crashes from concurrent close().</p>
          */
-        public void sendUnreliable(byte[] data) {
+        public synchronized void sendUnreliable(byte[] data) {
             if (unreliableChannel != null && connected) {
                 try {
                     if (pcProvider.getBufferedAmount(unreliableChannel) > config.unreliableBufferLimit) {
@@ -165,9 +169,15 @@ public class BaseWebRTCClient implements WebRTCClient {
          * <p>Cancels any pending ICE restart timers, closes the native peer connection
          * via {@link PeerConnectionProvider#closePeerConnection(Object)}, nullifies
          * all handles, and removes this peer from the client's peer map.</p>
+         *
+         * <p>Synchronized to prevent native crashes from concurrent send().</p>
          */
-        public void close() {
+        public synchronized void close() {
             connected = false;
+            // Null channel refs first so concurrent send() calls see null
+            // and skip before the native peer connection is freed
+            reliableChannel = null;
+            unreliableChannel = null;
             cancelTimers();
             if (peerConnection != null) {
                 try {
@@ -175,8 +185,6 @@ public class BaseWebRTCClient implements WebRTCClient {
                 } catch (Exception e) { /* ignore */ }
                 peerConnection = null;
             }
-            reliableChannel = null;
-            unreliableChannel = null;
             peers.remove(Integer.valueOf(peerId));
         }
 

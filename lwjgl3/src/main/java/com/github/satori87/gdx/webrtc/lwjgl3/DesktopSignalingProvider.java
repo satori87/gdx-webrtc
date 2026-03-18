@@ -66,6 +66,12 @@ class DesktopSignalingProvider implements SignalingProvider {
      */
     public void connect(String url, final SignalingEventHandler handler) {
         try {
+            // Close any existing connection before creating a new one
+            // to prevent ghost peers in the signaling server
+            if (wsClient != null) {
+                try { wsClient.close(); } catch (Exception ignored) {}
+                wsClient = null;
+            }
             URI uri = new URI(url);
             wsClient = new WebSocketClient(uri) {
                 public void onOpen(ServerHandshake handshake) {

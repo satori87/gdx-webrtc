@@ -761,8 +761,12 @@ public class BaseWebRTCClient implements WebRTCClient {
                     SignalMessage ping = new SignalMessage(
                             SignalMessage.TYPE_PEER_LIST, localId, 0, "");
                     signalingProvider.send(ping);
+                    log("Signaling keepalive sent (localId=" + localId + ")");
                     // Schedule next keepalive
                     keepaliveTimerHandle = scheduler.schedule(this, config.signalingKeepaliveMs);
+                } else {
+                    log("Signaling keepalive skipped (open=" + signalingProvider.isOpen()
+                            + ", localId=" + localId + ")");
                 }
             }
         }, config.signalingKeepaliveMs);

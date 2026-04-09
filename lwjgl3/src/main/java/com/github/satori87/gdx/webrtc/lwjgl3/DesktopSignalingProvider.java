@@ -93,7 +93,13 @@ class DesktopSignalingProvider implements SignalingProvider {
                     handler.onError(ex.getMessage());
                 }
             };
-            wsClient.connect();
+            // Run the WebSocket client on a daemon thread so it does not
+            // prevent JVM shutdown when the application exits.
+            // WebSocketClient.connect() creates a non-daemon thread internally,
+            // which causes the process to hang on Windows during dispose.
+            Thread wsThread = new Thread(wsClient, "webrtc-signaling");
+            wsThread.setDaemon(true);
+            wsThread.start();
         } catch (Exception e) {
             handler.onError("Failed to connect to signaling server: " + e.getMessage());
         }

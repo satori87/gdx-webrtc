@@ -41,7 +41,11 @@ class IOSSignalingProvider implements SignalingProvider {
                     handler.onError(ex != null ? ex.getMessage() : "Unknown error");
                 }
             };
-            wsClient.connect();
+            // Run the WebSocket client on a daemon thread so it does not
+            // prevent JVM shutdown when the application exits.
+            Thread wsThread = new Thread(wsClient, "webrtc-signaling");
+            wsThread.setDaemon(true);
+            wsThread.start();
         } catch (Exception e) {
             handler.onError("Failed to connect to signaling server: " + e.getMessage());
         }

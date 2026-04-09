@@ -89,7 +89,11 @@ class AndroidSignalingProvider implements SignalingProvider {
                     handler.onError(ex != null ? ex.getMessage() : "Unknown error");
                 }
             };
-            ws.connect();
+            // Run the WebSocket client on a daemon thread so it does not
+            // prevent JVM shutdown when the application exits.
+            Thread wsThread = new Thread(ws, "webrtc-signaling");
+            wsThread.setDaemon(true);
+            wsThread.start();
         } catch (Exception e) {
             handler.onError("Failed to connect: " + e.getMessage());
         }

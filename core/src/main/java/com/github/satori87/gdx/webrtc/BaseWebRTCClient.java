@@ -172,20 +172,28 @@ public class BaseWebRTCClient implements WebRTCClient {
          *
          * <p>Synchronized to prevent native crashes from concurrent send().</p>
          */
-        public synchronized void close() {
-            connected = false;
-            // Null channel refs first so concurrent send() calls see null
-            // and skip before the native peer connection is freed
-            reliableChannel = null;
-            unreliableChannel = null;
-            cancelTimers();
-            if (peerConnection != null) {
-                try {
-                    pcProvider.closePeerConnection(peerConnection);
-                } catch (Exception e) { /* ignore */ }
+        public void close() {
+            Object pcToClose;
+            synchronized (this) {
+                connected = false;
+                // Null channel refs first so concurrent send() calls see null
+                // and skip before the native peer connection is freed
+                reliableChannel = null;
+                unreliableChannel = null;
+                cancelTimers();
+                pcToClose = peerConnection;
                 peerConnection = null;
+                peers.remove(Integer.valueOf(peerId));
             }
-            peers.remove(Integer.valueOf(peerId));
+            // Close the native peer connection outside the synchronized block.
+            // pc.close() fires a CLOSED callback on the native thread which
+            // calls handleConnectionStateChanged() -> synchronized(peer).
+            // Holding the lock here would deadlock.
+            if (pcToClose != null) {
+                try {
+                    pcProvider.closePeerConnection(pcToClose);
+                } catch (Exception e) { /* ignore */ }
+            }
         }
 
         /**
